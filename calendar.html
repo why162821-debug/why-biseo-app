@@ -286,182 +286,186 @@ h2 em { font-style:normal; color:var(--faint); letter-spacing:.04em; text-transf
 .galt button:hover { color:var(--accent,#1f6f4f); }
 </style>
 <script>
-/* 로그인 관문. 세션이 없으면 본문 스크립트를 아예 실행하지 않는다.
-   데이터는 HTML 에 없고 로그인 뒤 받아오므로, 여기를 못 지나면 볼 것도 없다. */
+/* 로그인 관문.
+
+   이전 판은 로그인에 성공하면 location.reload() 로 다시 시작했다.
+   그런데 재시작 뒤 데이터 조회가 401 이면 세션을 버리고 또 reload 해서,
+   화면에는 "확인 중…" 만 남는 조용한 무한 루프가 됐다.
+   그래서 리로드를 없앴다. 로그인하면 그 자리에서 이어간다.
+   그리고 모든 실패는 반드시 글자로 남긴다 — 멈춰 있는 화면은 원인을 못 알려준다. */
 (async () => {
   const SB = {"url": "https://hwyzfsymydmnctasktbn.supabase.co", "key": "sb_publishable_11XbsxV22RvJ5I0RPVvqxQ_dNJRbwL4"};
+  const KIND = "calendar";
   const KEY = "biseo-session";
   const el = id => document.getElementById(id);
-  const msg = (t, cls) => { const m = el("gmsg"); m.textContent = t; m.className = "gmsg " + (cls || ""); };
+  const msg = (t, cls) => { const m = el("gmsg"); if (m) { m.textContent = t; m.className = "gmsg " + (cls || ""); } };
+  const showGate = () => { el("gate").hidden = false; document.querySelector(".wrap").style.display = "none"; };
+  const hideGate = () => { el("gate").hidden = true; document.querySelector(".wrap").style.display = ""; };
 
-  const load = () => { try { return JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) { return null; } };
-  const save = s => { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (e) {} };
+  let store = true;
+  const load = () => { try { return JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) { store = false; return null; } };
+  const save = s => { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (e) { store = false; } };
   const drop = () => { try { localStorage.removeItem(KEY); } catch (e) {} };
 
-  /* 메일 링크로 돌아오면 토큰이 #fragment 에 실려 온다. 실패도 여기로 온다 —
-     예전엔 실패를 무시해서 그냥 로그인 화면만 다시 떴다. 이제는 보여준다. */
   function fromHash() {
     const raw = location.hash.slice(1) || location.search.slice(1);
     if (!raw) return null;
     const p = new URLSearchParams(raw);
     const err = p.get("error_description") || p.get("error_code") || p.get("error");
-    if (err) {
-      history.replaceState(null, "", location.pathname);
-      return { error: decodeURIComponent(err).replace(/\+/g, " ") };
-    }
+    if (err) { history.replaceState(null, "", location.pathname); return { error: decodeURIComponent(err).replace(/\+/g, " ") }; }
     if (!p.get("access_token")) return null;
-    const s = {
-      access_token: p.get("access_token"),
-      refresh_token: p.get("refresh_token"),
-      expires_at: Date.now() + (parseInt(p.get("expires_in") || "3600", 10) * 1000),
-    };
     history.replaceState(null, "", location.pathname);
-    return s;
+    return { access_token: p.get("access_token"), refresh_token: p.get("refresh_token"),
+             expires_at: Date.now() + (parseInt(p.get("expires_in") || "3600", 10) * 1000) };
   }
 
   async function refresh(s) {
-    const r = await fetch(`${SB.url}/auth/v1/token?grant_type=refresh_token`, {
-      method: "POST",
-      headers: { apikey: SB.key, "Content-Type": "application/json" },
-      body: JSON.stringify({ refresh_token: s.refresh_token }),
-    });
-    if (!r.ok) return null;
-    const d = await r.json();
-    return { access_token: d.access_token, refresh_token: d.refresh_token,
-             expires_at: Date.now() + (d.expires_in || 3600) * 1000 };
+    try {
+      const r = await fetch(`${SB.url}/auth/v1/token?grant_type=refresh_token`, {
+        method: "POST", headers: { apikey: SB.key, "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh_token: s.refresh_token }) });
+      if (!r.ok) return null;
+      const d = await r.json();
+      return { access_token: d.access_token, refresh_token: d.refresh_token,
+               expires_at: Date.now() + (d.expires_in || 3600) * 1000 };
+    } catch (e) { return null; }
   }
 
-  const hashed = fromHash();
-  let session = (hashed && !hashed.error) ? hashed : load();
-  if (session && session.expires_at - Date.now() < 60000 && session.refresh_token) {
-    session = await refresh(session);
+  function makeApi(token) {
+    return async (path, init) => {
+      const r = await fetch(`${SB.url}/rest/v1/${path}`, { ...init, headers: {
+        apikey: SB.key, Authorization: "Bearer " + token,
+        "Content-Type": "application/json", ...(init && init.headers) } });
+      if (!r.ok) throw new Error(`${r.status} ${(await r.text()).slice(0, 160)}`);
+      return r.status === 204 ? null : r.json();
+    };
   }
-  if (session) save(session); else drop();
 
-  if (!session) {
-    el("gate").hidden = false;
-    document.querySelector(".wrap").style.display = "none";
+  /* 세션을 얻은 뒤의 길. 여기서 실패하면 이유를 화면에 적고 멈춘다 —
+     되돌아가서 다시 로그인시키면 원인을 영영 못 본다. */
+  async function enter(session) {
+    const api = makeApi(session.access_token);
+    const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+    const B = { url: SB.url, key: SB.key, token: session.access_token, api,
+                logout() { drop(); location.href = location.pathname; },
+                data: { plan: null, calendar: { months: {}, synced_at: null } } };
+    window.__BISEO = B;
 
-    if (hashed && hashed.error) {
-      const e = hashed.error;
-      msg(/expired|invalid/i.test(e)
-        ? "메일 링크가 만료되었거나 이미 사용됐습니다. 메일 앱이 링크를 미리 열어보면 "
-          + "이렇게 됩니다 — 아래에서 비밀번호로 로그인하세요."
-        : "로그인 실패 — " + e, "bad");
-    }
-
-    const creds = () => ({ email: el("gmail").value.trim(), password: el("gpw").value });
-
-    async function auth(path, body, okMsg) {
-      el("gsend").disabled = true;
-      msg("확인 중…");
-      try {
-        const r = await fetch(`${SB.url}/auth/v1/${path}`, {
-          method: "POST",
-          headers: { apikey: SB.key, "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        });
-        const d = await r.json().catch(() => ({}));
-        if (!r.ok) throw new Error(d.error_description || d.msg || d.message || r.status);
-        if (d.access_token) {
-          save({ access_token: d.access_token, refresh_token: d.refresh_token,
-                 expires_at: Date.now() + (d.expires_in || 3600) * 1000 });
-          location.reload();
+    try {
+      if (KIND === "plan") {
+        const rows = await api(`biseo_plan_day?day=eq.${today}&select=plan`);
+        if (!rows.length) {
+          showGate();
+          msg(`로그인은 됐습니다. 그런데 ${today} 계획이 아직 올라오지 않았습니다. `
+              + "PC 에서 python -m biseo.cli push 를 돌려주세요.", "bad");
           return;
         }
-        msg(okMsg || "확인하세요.", "ok");
-      } catch (err) {
-        msg(String(err.message || err), "bad");
-      } finally {
-        el("gsend").disabled = false;
+        B.data.plan = rows[0].plan;
+      } else {
+        const rows = await api("biseo_calendar?select=month,days,synced_at&order=month");
+        const months = {}; let latest = null;
+        rows.forEach(r => { months[r.month] = r.days || {};
+          if (r.synced_at && (!latest || r.synced_at > latest)) latest = r.synced_at; });
+        B.data.calendar = { months, synced_at: latest };
       }
+    } catch (err) {
+      showGate();
+      const e = String(err.message || err);
+      msg(/^40[13]/.test(e)
+        ? "로그인은 됐는데 이 계정에는 접근 권한이 없습니다. 등록된 주인 계정인지 확인이 필요합니다. (" + e + ")"
+        : "데이터를 받지 못했습니다 — " + e, "bad");
+      return;
     }
 
-    el("gform").addEventListener("submit", e => {
-      e.preventDefault();
-      auth("token?grant_type=password", creds());
-    });
-
-    el("gsignup").addEventListener("click", () => {
-      const c = creds();
-      if (!c.email || (c.password || "").length < 6) {
-        msg("이메일과 6자 이상 비밀번호를 넣고 눌러주세요.", "bad");
-        return;
-      }
-      auth("signup", c, "만들었습니다. 이제 로그인을 눌러주세요.");
-    });
-
-    el("glink").addEventListener("click", () => {
-      const email = el("gmail").value.trim();
-      if (!email) { msg("이메일을 먼저 넣어주세요.", "bad"); return; }
-      auth("otp", { email, create_user: true,
-                    options: { email_redirect_to: location.href.split("#")[0] } },
-           email + " 로 링크를 보냈습니다. 메일 앱이 링크를 미리 열어버리면 "
-           + "만료로 뜰 수 있으니, 그땐 비밀번호 방식을 쓰세요.");
-    });
-    return;                       // 본문은 실행하지 않는다
-  }
-
-  /* 여기부터는 로그인된 상태. 본문이 쓸 인증 fetch 를 깔아둔다. */
-  window.__BISEO = {
-    url: SB.url, key: SB.key, token: session.access_token,
-    logout() { drop(); location.reload(); },
-    async api(path, init) {
-      const r = await fetch(`${SB.url}/rest/v1/${path}`, {
-        ...init,
-        headers: {
-          apikey: SB.key,
-          Authorization: "Bearer " + session.access_token,
-          "Content-Type": "application/json",
-          ...(init && init.headers),
-        },
-      });
-      if (r.status === 401 || r.status === 403) { drop(); location.reload(); throw new Error("세션 만료"); }
-      if (!r.ok) throw new Error(`${r.status} ${(await r.text()).slice(0, 140)}`);
-      return r.status === 204 ? null : r.json();
-    },
-  };
-
-  /* 본문이 쓸 데이터를 먼저 받아온다. 없으면 본문을 돌릴 이유가 없다. */
-  const KIND = "calendar";
-  const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
-  const B = window.__BISEO;
-  B.data = { plan: null, calendar: { months: {}, synced_at: null } };
-
-  try {
-    if (KIND === "plan") {
-      const rows = await B.api(`biseo_plan_day?day=eq.${today}&select=plan`);
-      if (!rows.length) {
-        document.querySelector(".wrap").innerHTML =
-          '<p style="padding:40px 0;color:var(--muted)">오늘 계획이 아직 올라오지 않았습니다.'
-          + '<br>PC 에서 <code>python -m biseo.cli push</code> 를 한 번 돌려주세요.</p>';
-        return;
-      }
-      B.data.plan = rows[0].plan;
-    } else {
-      const rows = await B.api("biseo_calendar?select=month,days,synced_at&order=month");
-      const months = {};
-      let latest = null;
-      rows.forEach(r => {
-        months[r.month] = r.days || {};
-        if (r.synced_at && (!latest || r.synced_at > latest)) latest = r.synced_at;
-      });
-      B.data.calendar = { months, synced_at: latest };
+    hideGate();
+    if (!store) {
+      document.querySelector(".wrap").insertAdjacentHTML("afterbegin",
+        '<p style="font-size:12.5px;color:var(--warn)">이 브라우저가 저장을 막고 있어 '
+        + '새로고침하면 다시 로그인해야 합니다.</p>');
     }
-  } catch (err) {
-    document.querySelector(".wrap").innerHTML =
-      `<p style="padding:40px 0;color:var(--warn)">데이터를 받지 못했습니다 — ${err}</p>`;
-    return;
+    try { new Function(document.getElementById("main-js").textContent)(); }
+    catch (err) {
+      document.querySelector(".wrap").insertAdjacentHTML("afterbegin",
+        `<p style="color:var(--warn);font-size:13px">화면을 그리지 못했습니다 — ${err}</p>`);
+      throw err;
+    }
   }
 
-  const src = document.getElementById("main-js");
-  try {
-    new Function(src.textContent)();
-  } catch (err) {
-    document.querySelector(".wrap").insertAdjacentHTML("afterbegin",
-      `<p style="color:var(--warn);font-size:13px">화면을 그리지 못했습니다 — ${err}</p>`);
-    throw err;
+  /* --- 시작 --- */
+  const hashed = fromHash();
+  let session = (hashed && !hashed.error) ? hashed : load();
+  if (session && session.refresh_token && session.expires_at - Date.now() < 60000) {
+    session = await refresh(session);
+    if (!session) drop();
   }
+  if (session) { save(session); await enter(session); return; }
+
+  showGate();
+  if (hashed && hashed.error) {
+    msg(/expired|invalid/i.test(hashed.error)
+      ? "메일 링크가 만료되었거나 이미 사용됐습니다 — 아래에서 비밀번호로 로그인하세요."
+      : "로그인 실패 — " + hashed.error, "bad");
+  }
+
+  const creds = () => ({ email: el("gmail").value.trim(), password: el("gpw").value });
+
+  async function post(path, body) {
+    const r = await fetch(`${SB.url}/auth/v1/${path}`, {
+      method: "POST", headers: { apikey: SB.key, "Content-Type": "application/json" },
+      body: JSON.stringify(body) });
+    const d = await r.json().catch(() => ({}));
+    return { ok: r.ok, status: r.status, d };
+  }
+
+  async function run(path, body, okMsg) {
+    el("gsend").disabled = true;
+    msg("확인 중…");
+    try {
+      const { ok, status, d } = await post(path, body);
+      if (!ok) {
+        const m = d.error_description || d.msg || d.message || "";
+        msg(/already/i.test(m) ? "이미 가입된 계정입니다 — 「로그인」 을 눌러주세요."
+          : /invalid.*credential/i.test(m) ? "이메일이나 비밀번호가 맞지 않습니다."
+          : `로그인 실패 (${status}) ${m}`, "bad");
+        return;
+      }
+      if (d.access_token) {
+        const s = { access_token: d.access_token, refresh_token: d.refresh_token,
+                    expires_at: Date.now() + (d.expires_in || 3600) * 1000 };
+        save(s);
+        msg("들어가는 중…", "ok");
+        await enter(s);             // 리로드하지 않는다
+        return;
+      }
+      msg(okMsg || "확인하세요.", "ok");
+    } catch (err) {
+      msg("연결하지 못했습니다 — " + (err.message || err), "bad");
+    } finally {
+      el("gsend").disabled = false;
+    }
+  }
+
+  el("gform").addEventListener("submit", e => {
+    e.preventDefault();
+    const c = creds();
+    if (!c.email || !c.password) { msg("이메일과 비밀번호를 넣어주세요.", "bad"); return; }
+    run("token?grant_type=password", c);
+  });
+
+  el("gsignup").addEventListener("click", () => {
+    const c = creds();
+    if (!c.email || (c.password || "").length < 6) {
+      msg("이메일과 6자 이상 비밀번호를 넣고 눌러주세요.", "bad"); return; }
+    run("signup", c, "만들었습니다. 이제 「로그인」 을 눌러주세요.");
+  });
+
+  el("glink").addEventListener("click", () => {
+    const email = el("gmail").value.trim();
+    if (!email) { msg("이메일을 먼저 넣어주세요.", "bad"); return; }
+    run("otp", { email, create_user: true,
+                 options: { email_redirect_to: location.href.split("#")[0] } },
+        email + " 로 링크를 보냈습니다. 메일 앱이 링크를 미리 열면 만료로 뜰 수 있습니다.");
+  });
 })();
 </script>
 
