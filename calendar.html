@@ -1,0 +1,745 @@
+<title>내 캘린더</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@300;400;500;600&display=swap">
+
+<style>
+:root {
+  --paper:#f5f6f3; --surface:#fff; --sunk:#eceee8; --ink:#191b19; --muted:#6b716a;
+  --faint:#969c94; --line:#e1e3dc; --accent:#1f6f4f; --accent-soft:#e3efe8;
+  --warn:#a1571c; --warn-soft:#f6ece0; --shadow:0 1px 2px rgba(25,40,30,.05);
+  --c1:#1f6f4f; --c2:#2f5bd8; --c3:#a1571c; --c4:#7a4a9e; --c5:#0e7490; --c6:#9a3d5a;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --paper:#111310; --surface:#191c18; --sunk:#1f2320; --ink:#e9ebe6; --muted:#9aa096;
+    --faint:#6f756d; --line:#2b2f2a; --accent:#63c79b; --accent-soft:#1b2c24;
+    --warn:#d99a5c; --warn-soft:#2c2318; --shadow:0 1px 2px rgba(0,0,0,.35);
+    --c1:#63c79b; --c2:#86a2ff; --c3:#d99a5c; --c4:#c4a0e8; --c5:#5fc6d8; --c6:#e08aa4;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --paper:#111310; --surface:#191c18; --sunk:#1f2320; --ink:#e9ebe6; --muted:#9aa096;
+  --faint:#6f756d; --line:#2b2f2a; --accent:#63c79b; --accent-soft:#1b2c24;
+  --warn:#d99a5c; --warn-soft:#2c2318; --shadow:0 1px 2px rgba(0,0,0,.35);
+  --c1:#63c79b; --c2:#86a2ff; --c3:#d99a5c; --c4:#c4a0e8; --c5:#5fc6d8; --c6:#e08aa4;
+}
+
+* { box-sizing:border-box; }
+body {
+  background:var(--paper); color:var(--ink);
+  font-family:"IBM Plex Sans KR",-apple-system,"Malgun Gothic",sans-serif;
+  line-height:1.5; -webkit-font-smoothing:antialiased;
+}
+.wrap { max-width:860px; margin:0 auto; padding-inline:18px; padding-block:28px 56px; }
+
+/* header */
+.top { display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; margin-bottom:18px; }
+h1 {
+  font-family:"Gowun Batang","Nanum Myeongjo",serif; font-weight:700;
+  font-size:clamp(23px,4.6vw,29px); margin:0; letter-spacing:-.01em;
+}
+.nav { margin-left:auto; display:flex; gap:6px; align-items:center; }
+.nav button {
+  font-family:"IBM Plex Mono",monospace; font-size:13px; color:var(--ink);
+  background:var(--surface); border:1px solid var(--line); border-radius:3px;
+  padding:5px 11px; cursor:pointer;
+}
+.nav button:hover { border-color:var(--accent); color:var(--accent); }
+.nav button:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+
+/* grid */
+/* minmax(0,1fr) 이어야 한다. 그냥 1fr 은 최소 폭이 내용 크기라서
+   긴 일정 제목이 칸을 밀어내고 표가 오른쪽으로 잘린다. */
+.dow { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:1px; margin-bottom:1px; }
+.dow span {
+  font-family:"IBM Plex Mono",monospace; font-size:10.5px; letter-spacing:.08em;
+  color:var(--faint); text-align:center; padding:6px 0; text-transform:uppercase;
+}
+.dow span:first-child { color:var(--warn); }
+.grid {
+  display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:1px;
+  background:var(--line); border:1px solid var(--line); border-radius:3px; overflow:hidden;
+}
+.cell {
+  background:var(--surface); min-height:94px; padding:5px 5px 6px;
+  display:flex; flex-direction:column; gap:3px; cursor:pointer; border:0; text-align:left;
+  font:inherit; color:inherit;
+}
+.cell.out { background:var(--sunk); }
+.cell.out .dnum { color:var(--faint); }
+.cell:hover { background:var(--accent-soft); }
+.cell.sel { box-shadow:inset 0 0 0 2px var(--accent); }
+.cell:focus-visible { outline:2px solid var(--accent); outline-offset:-2px; }
+.dnum {
+  font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums;
+  font-size:12px; color:var(--muted); align-self:flex-start;
+}
+.cell.sun .dnum { color:var(--warn); }
+.cell.today .dnum {
+  background:var(--accent); color:var(--surface); font-weight:600;
+  border-radius:99px; padding:1px 6px; margin:-1px -2px;
+}
+.chip {
+  font-size:10.5px; line-height:1.35; padding:1px 4px; border-radius:2px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; max-width:100%;
+  border-left:2.5px solid var(--cc,var(--muted)); background:var(--sunk); color:var(--ink);
+}
+.chip.allday { background:var(--cc,var(--muted)); color:var(--surface); border-left-color:transparent; }
+.more { font-size:10px; color:var(--faint); font-family:"IBM Plex Mono",monospace; }
+
+/* day detail */
+h2 {
+  font-family:"IBM Plex Mono",monospace; font-size:11.5px; font-weight:600;
+  letter-spacing:.13em; text-transform:uppercase; color:var(--muted);
+  margin:34px 0 12px; padding-bottom:7px; border-bottom:1px solid var(--line);
+  display:flex; justify-content:space-between; align-items:baseline; gap:12px;
+}
+h2 em { font-style:normal; color:var(--faint); letter-spacing:.04em; text-transform:none; font-size:11px; }
+.day { display:grid; gap:8px; }
+.ev {
+  display:grid; grid-template-columns:82px 1fr; gap:11px;
+  background:var(--surface); border:1px solid var(--line);
+  border-left:3px solid var(--cc,var(--muted));
+  border-radius:3px; padding:10px 13px; box-shadow:var(--shadow);
+}
+.ev .when {
+  font-family:"IBM Plex Mono",monospace; font-variant-numeric:tabular-nums;
+  font-size:12px; color:var(--muted); padding-top:1px;
+}
+.ev .ttl { font-size:14.5px; font-weight:500; }
+.ev .meta { font-size:12px; color:var(--faint); margin-top:2px; }
+.ev .badge {
+  font-family:"IBM Plex Mono",monospace; font-size:10px; padding:1px 5px;
+  border-radius:2px; background:var(--sunk); color:var(--muted); margin-left:5px;
+}
+.empty { color:var(--faint); font-size:13.5px; padding:14px 2px; }
+
+/* form */
+.panel {
+  background:var(--surface); border:1px solid var(--line); border-radius:3px;
+  padding:14px 16px 16px; box-shadow:var(--shadow); margin-top:14px;
+}
+.panel h3 { margin:0 0 12px; font-size:14.5px; font-weight:600; }
+.fields { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; }
+.f { display:flex; flex-direction:column; gap:3px; min-width:0; }
+.f label { font-size:11px; color:var(--faint); font-family:"IBM Plex Mono",monospace; letter-spacing:.04em; }
+.f input, .f select {
+  font:inherit; font-size:13.5px; color:var(--ink); background:var(--paper);
+  border:1px solid var(--line); border-radius:3px; padding:6px 8px; min-width:0;
+}
+.f input:focus, .f select:focus { outline:2px solid var(--accent); outline-offset:-1px; }
+.f.chk { flex-direction:row; align-items:center; gap:7px; align-self:end; padding-bottom:7px; }
+.f.chk label { font-size:13px; color:var(--ink); font-family:inherit; letter-spacing:0; }
+.acts { display:flex; gap:8px; margin-top:13px; flex-wrap:wrap; }
+.btn {
+  font:inherit; font-size:13px; padding:7px 15px; border-radius:3px; cursor:pointer;
+  border:1px solid var(--line); background:var(--surface); color:var(--ink);
+}
+.btn.pri { background:var(--accent); border-color:var(--accent); color:var(--surface); font-weight:600; }
+.btn.dgr { color:var(--warn); border-color:var(--warn); }
+.btn:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+.ev .rowacts { display:flex; gap:5px; margin-top:7px; }
+.ev .rowacts button {
+  font:inherit; font-size:11.5px; padding:3px 9px; border-radius:2px; cursor:pointer;
+  border:1px solid var(--line); background:var(--paper); color:var(--muted);
+}
+.ev .rowacts button:hover { border-color:var(--accent); color:var(--accent); }
+
+/* pending */
+.pend { display:grid; gap:7px; margin-top:12px; }
+.pitem {
+  display:flex; gap:9px; align-items:baseline; flex-wrap:wrap;
+  background:var(--warn-soft); border-radius:3px; padding:8px 12px; font-size:13px;
+}
+.pitem.err { background:var(--sunk); }
+.pitem .op {
+  font-family:"IBM Plex Mono",monospace; font-size:10.5px; padding:1px 6px;
+  border-radius:2px; background:var(--warn); color:var(--surface);
+}
+.pitem.err .op { background:var(--faint); }
+.pitem .msg { font-size:12px; color:var(--muted); width:100%; }
+.pitem button {
+  margin-left:auto; font:inherit; font-size:11.5px; padding:2px 8px; cursor:pointer;
+  border:1px solid var(--line); border-radius:2px; background:var(--surface); color:var(--muted);
+}
+
+/* legend + footer */
+.legend { display:flex; gap:12px; flex-wrap:wrap; margin-top:16px; font-size:11.5px; color:var(--muted); }
+.legend i { display:inline-block; width:9px; height:9px; border-radius:2px; background:var(--cc); margin-right:4px; vertical-align:-1px; }
+.foot {
+  margin-top:34px; padding-top:14px; border-top:1px solid var(--line);
+  font-size:11.5px; color:var(--faint); font-family:"IBM Plex Mono",monospace;
+  display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap;
+}
+.foot a { color:var(--accent); }
+.sync.live { color:var(--accent); }
+.note {
+  margin-top:12px; font-size:12.5px; color:var(--muted);
+  background:var(--sunk); border-radius:3px; padding:10px 13px;
+}
+
+@media (max-width:560px) {
+  .cell { min-height:68px; padding:4px 3px 5px; }
+  .chip { font-size:9.5px; padding:1px 3px; }
+  .dnum { font-size:11px; }
+  .ev { grid-template-columns:1fr; gap:3px; }
+  .ev .when { padding-top:0; }
+}
+@media (prefers-reduced-motion:reduce) { * { transition:none !important; } }
+</style>
+
+<div class="wrap">
+  <div class="top">
+    <h1 id="title">—</h1>
+    <div class="nav">
+      <button id="prev" aria-label="이전 달">‹</button>
+      <button id="today">오늘</button>
+      <button id="next" aria-label="다음 달">›</button>
+      <button id="add">+ 추가</button>
+    </div>
+  </div>
+
+  <div class="dow"><span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span></div>
+  <div class="grid" id="grid" role="grid"></div>
+  <div class="legend" id="legend"></div>
+
+  <section class="panel" id="form" hidden>
+    <h3 id="formtitle">일정 추가</h3>
+    <div class="fields">
+      <div class="f"><label for="f-title">제목</label><input id="f-title" type="text" placeholder="무엇을 하나요"></div>
+      <div class="f"><label for="f-date">날짜</label><input id="f-date" type="date"></div>
+      <div class="f"><label for="f-start">시작</label><input id="f-start" type="time" step="300"></div>
+      <div class="f"><label for="f-end">종료</label><input id="f-end" type="time" step="300"></div>
+      <div class="f chk"><input id="f-allday" type="checkbox"><label for="f-allday">종일</label></div>
+      <div class="f"><label for="f-loc">장소</label><input id="f-loc" type="text" placeholder="비워도 됩니다"></div>
+      <div class="f"><label for="f-cal">캘린더</label><select id="f-cal"></select></div>
+    </div>
+    <div class="acts">
+      <button class="btn pri" id="f-save">네이버 캘린더에 저장</button>
+      <button class="btn" id="f-cancel">취소</button>
+      <button class="btn dgr" id="f-del" hidden>삭제</button>
+    </div>
+  </section>
+
+  <h2>선택한 날 <em id="selinfo"></em></h2>
+  <div class="day" id="day"></div>
+
+  <div class="pend" id="pend"></div>
+  <p class="note" id="note"></p>
+
+  <div class="foot">
+    <span id="sync" class="sync">—</span>
+    <span><a id="planlink" href="#">오늘의 설계 →</a></span>
+  </div>
+</div>
+
+<div id="gate" hidden>
+  <div class="gatebox">
+    <h1>오늘의 설계</h1>
+    <p class="gsub">이 페이지는 주인만 볼 수 있습니다. 이메일로 로그인하세요.</p>
+    <form id="gform">
+      <input id="gmail" type="email" inputmode="email" autocomplete="email"
+             placeholder="이메일 주소" required>
+      <button type="submit" id="gsend">로그인 링크 받기</button>
+    </form>
+    <p class="gmsg" id="gmsg"></p>
+    <p class="gfoot">비밀번호는 없습니다. 메일로 온 링크를 누르면 들어옵니다.</p>
+  </div>
+</div>
+<style>
+#gate { position:fixed; inset:0; z-index:99; display:grid; place-items:center;
+        background:var(--paper,#f5f6f3); padding:24px; }
+#gate[hidden] { display:none; }
+.gatebox { width:100%; max-width:340px; text-align:left; }
+.gatebox h1 { font-family:"Gowun Batang",serif; font-size:26px; margin:0 0 6px; }
+.gsub { font-size:13.5px; color:var(--muted,#6b716a); margin:0 0 20px; line-height:1.55; }
+#gform { display:grid; gap:9px; }
+#gmail { font:inherit; font-size:15px; padding:11px 13px; border-radius:8px;
+         border:1px solid var(--line,#e1e3dc); background:var(--surface,#fff);
+         color:var(--ink,#191b19); }
+#gmail:focus { outline:none; border-color:var(--accent,#1f6f4f); }
+#gsend { font:inherit; font-size:15px; font-weight:600; padding:11px; border-radius:8px;
+         cursor:pointer; color:#fff; background:var(--accent,#1f6f4f);
+         border:1px solid var(--accent,#1f6f4f); }
+#gsend:disabled { opacity:.55; cursor:default; }
+.gmsg { font-size:13px; margin:14px 0 0; line-height:1.6; min-height:1.2em; }
+.gmsg.ok { color:var(--accent,#1f6f4f); }
+.gmsg.bad { color:var(--warn,#a1571c); }
+.gfoot { font-size:12px; color:var(--faint,#969c94); margin-top:20px; }
+</style>
+<script>
+/* 로그인 관문. 세션이 없으면 본문 스크립트를 아예 실행하지 않는다.
+   데이터는 HTML 에 없고 로그인 뒤 받아오므로, 여기를 못 지나면 볼 것도 없다. */
+(async () => {
+  const SB = {"url": "https://hwyzfsymydmnctasktbn.supabase.co", "key": "sb_publishable_11XbsxV22RvJ5I0RPVvqxQ_dNJRbwL4"};
+  const KEY = "biseo-session";
+  const el = id => document.getElementById(id);
+  const msg = (t, cls) => { const m = el("gmsg"); m.textContent = t; m.className = "gmsg " + (cls || ""); };
+
+  const load = () => { try { return JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) { return null; } };
+  const save = s => { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (e) {} };
+  const drop = () => { try { localStorage.removeItem(KEY); } catch (e) {} };
+
+  /* 메일 링크로 돌아오면 토큰이 #fragment 에 실려 온다. 주소창에서 지운다. */
+  function fromHash() {
+    if (!location.hash.includes("access_token")) return null;
+    const p = new URLSearchParams(location.hash.slice(1));
+    const s = {
+      access_token: p.get("access_token"),
+      refresh_token: p.get("refresh_token"),
+      expires_at: Date.now() + (parseInt(p.get("expires_in") || "3600", 10) * 1000),
+    };
+    history.replaceState(null, "", location.pathname + location.search);
+    return s.access_token ? s : null;
+  }
+
+  async function refresh(s) {
+    const r = await fetch(`${SB.url}/auth/v1/token?grant_type=refresh_token`, {
+      method: "POST",
+      headers: { apikey: SB.key, "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh_token: s.refresh_token }),
+    });
+    if (!r.ok) return null;
+    const d = await r.json();
+    return { access_token: d.access_token, refresh_token: d.refresh_token,
+             expires_at: Date.now() + (d.expires_in || 3600) * 1000 };
+  }
+
+  let session = fromHash() || load();
+  if (session && session.expires_at - Date.now() < 60000 && session.refresh_token) {
+    session = await refresh(session);
+  }
+  if (session) save(session); else drop();
+
+  if (!session) {
+    el("gate").hidden = false;
+    document.querySelector(".wrap").style.display = "none";
+    el("gform").addEventListener("submit", async e => {
+      e.preventDefault();
+      const email = el("gmail").value.trim();
+      if (!email) return;
+      el("gsend").disabled = true;
+      msg("보내는 중…");
+      try {
+        const r = await fetch(`${SB.url}/auth/v1/otp`, {
+          method: "POST",
+          headers: { apikey: SB.key, "Content-Type": "application/json" },
+          body: JSON.stringify({ email, create_user: true,
+                                 options: { email_redirect_to: location.href.split("#")[0] } }),
+        });
+        if (!r.ok) throw new Error((await r.text()).slice(0, 160));
+        msg(email + " 로 로그인 링크를 보냈습니다. 메일함을 확인하세요. "
+            + "같은 기기에서 링크를 열어야 들어와집니다.", "ok");
+      } catch (err) {
+        msg("보내지 못했습니다 — " + err.message, "bad");
+        el("gsend").disabled = false;
+      }
+    });
+    return;                       // 본문은 실행하지 않는다
+  }
+
+  /* 여기부터는 로그인된 상태. 본문이 쓸 인증 fetch 를 깔아둔다. */
+  window.__BISEO = {
+    url: SB.url, key: SB.key, token: session.access_token,
+    logout() { drop(); location.reload(); },
+    async api(path, init) {
+      const r = await fetch(`${SB.url}/rest/v1/${path}`, {
+        ...init,
+        headers: {
+          apikey: SB.key,
+          Authorization: "Bearer " + session.access_token,
+          "Content-Type": "application/json",
+          ...(init && init.headers),
+        },
+      });
+      if (r.status === 401 || r.status === 403) { drop(); location.reload(); throw new Error("세션 만료"); }
+      if (!r.ok) throw new Error(`${r.status} ${(await r.text()).slice(0, 140)}`);
+      return r.status === 204 ? null : r.json();
+    },
+  };
+
+  /* 본문이 쓸 데이터를 먼저 받아온다. 없으면 본문을 돌릴 이유가 없다. */
+  const KIND = "calendar";
+  const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+  const B = window.__BISEO;
+  B.data = { plan: null, calendar: { months: {}, synced_at: null } };
+
+  try {
+    if (KIND === "plan") {
+      const rows = await B.api(`biseo_plan_day?day=eq.${today}&select=plan`);
+      if (!rows.length) {
+        document.querySelector(".wrap").innerHTML =
+          '<p style="padding:40px 0;color:var(--muted)">오늘 계획이 아직 올라오지 않았습니다.'
+          + '<br>PC 에서 <code>python -m biseo.cli push</code> 를 한 번 돌려주세요.</p>';
+        return;
+      }
+      B.data.plan = rows[0].plan;
+    } else {
+      const rows = await B.api("biseo_calendar?select=month,days,synced_at&order=month");
+      const months = {};
+      let latest = null;
+      rows.forEach(r => {
+        months[r.month] = r.days || {};
+        if (r.synced_at && (!latest || r.synced_at > latest)) latest = r.synced_at;
+      });
+      B.data.calendar = { months, synced_at: latest };
+    }
+  } catch (err) {
+    document.querySelector(".wrap").innerHTML =
+      `<p style="padding:40px 0;color:var(--warn)">데이터를 받지 못했습니다 — ${err}</p>`;
+    return;
+  }
+
+  const src = document.getElementById("main-js");
+  try {
+    new Function(src.textContent)();
+  } catch (err) {
+    document.querySelector(".wrap").insertAdjacentHTML("afterbegin",
+      `<p style="color:var(--warn);font-size:13px">화면을 그리지 못했습니다 — ${err}</p>`);
+    throw err;
+  }
+})();
+</script>
+
+<script type="text/plain" id="main-js">
+
+const SEED = window.__BISEO.data.calendar;
+const PLAN_URL = "./index.html";
+
+const el = document.getElementById.bind(document);
+const esc = s => String(s ?? "").replace(/[&<>"]/g,
+  c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const pad = n => String(n).padStart(2, "0");
+const iso = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const PALETTE = ["--c1", "--c2", "--c3", "--c4", "--c5", "--c6"];
+
+/** 캘린더 이름마다 고정된 색. 이름이 같으면 항상 같은 색이 나와야 눈에 익는다. */
+const colorOf = (() => {
+  const cache = new Map();
+  return name => {
+    if (!cache.has(name)) {
+      let h = 0;
+      for (const ch of name || "") h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+      cache.set(name, `var(${PALETTE[h % PALETTE.length]})`);
+    }
+    return cache.get(name);
+  };
+})();
+
+let months = SEED.months || {};
+let syncedAt = SEED.synced_at || null;
+const today = new Date();
+let cursor = new Date(today.getFullYear(), today.getMonth(), 1);
+let selected = iso(today);
+
+function eventsOn(dateStr) {
+  const m = dateStr.slice(0, 7);
+  return (months[m] && months[m][dateStr]) || [];
+}
+
+function when(e) {
+  if (e.all_day) return "종일";
+  if (!e.start || !e.end) return "-";
+  const s = e.start.slice(11, 16), en = e.end.slice(11, 16);
+  const multi = e.start.slice(0, 10) !== e.end.slice(0, 10);
+  return multi ? `${s}–${en}…` : `${s}–${en}`;
+}
+
+function renderGrid() {
+  const y = cursor.getFullYear(), m = cursor.getMonth();
+  el("title").textContent = `${y}년 ${m + 1}월`;
+
+  const first = new Date(y, m, 1);
+  const start = new Date(y, m, 1 - first.getDay());
+  const grid = el("grid");
+  grid.textContent = "";
+
+  const used = new Set();
+  for (let i = 0; i < 42; i++) {
+    const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+    const ds = iso(d);
+    const evs = eventsOn(ds);
+    const cell = document.createElement("button");
+    cell.type = "button";
+    cell.className = "cell"
+      + (d.getMonth() !== m ? " out" : "")
+      + (d.getDay() === 0 ? " sun" : "")
+      + (ds === iso(today) ? " today" : "")
+      + (ds === selected ? " sel" : "");
+    cell.dataset.date = ds;
+    cell.setAttribute("aria-label", `${d.getMonth() + 1}월 ${d.getDate()}일, 일정 ${evs.length}건`);
+
+    const num = document.createElement("span");
+    num.className = "dnum";
+    num.textContent = d.getDate();
+    cell.appendChild(num);
+
+    evs.slice(0, 3).forEach(e => {
+      used.add(e.calendar);
+      const c = document.createElement("span");
+      c.className = "chip" + (e.all_day ? " allday" : "");
+      c.style.setProperty("--cc", colorOf(e.calendar));
+      c.textContent = (e.all_day ? "" : e.start.slice(11, 16) + " ") + e.title;
+      cell.appendChild(c);
+    });
+    if (evs.length > 3) {
+      const more = document.createElement("span");
+      more.className = "more";
+      more.textContent = `+${evs.length - 3}`;
+      cell.appendChild(more);
+    }
+    grid.appendChild(cell);
+  }
+
+  const lg = el("legend");
+  lg.textContent = "";
+  [...used].sort().forEach(name => {
+    const s = document.createElement("span");
+    const i = document.createElement("i");
+    i.style.setProperty("--cc", colorOf(name));
+    s.appendChild(i);
+    s.appendChild(document.createTextNode(name));
+    lg.appendChild(s);
+  });
+}
+
+function renderDay() {
+  const evs = eventsOn(selected);
+  const d = new Date(selected + "T00:00:00");
+  const days = ["일", "월", "화", "수", "목", "금", "토"];
+  el("selinfo").textContent =
+    `${d.getMonth() + 1}월 ${d.getDate()}일 (${days[d.getDay()]}) · ${evs.length}건`;
+
+  const box = el("day");
+  box.textContent = "";
+  if (!evs.length) {
+    const p = document.createElement("p");
+    p.className = "empty";
+    p.textContent = "이 날은 일정이 없습니다.";
+    box.appendChild(p);
+    return;
+  }
+  evs.forEach((e, i) => {
+    const row = document.createElement("div");
+    row.className = "ev";
+    row.style.setProperty("--cc", colorOf(e.calendar));
+    const multi = !e.all_day && e.start && e.end && e.start.slice(0, 10) !== e.end.slice(0, 10);
+    // 네이버에서 온 일정만 고칠 수 있다. 수기(overlay)와 여러 날 일정은 제외 —
+    // 여러 날 일정을 이 화면에서 고치면 다른 날짜까지 흔들린다.
+    const editable = e.source === "caldav" && e.href && !multi && !e.recurring;
+    row.innerHTML =
+      `<div class="when">${esc(when(e))}</div>` +
+      `<div><div class="ttl">${esc(e.title)}` +
+        (e.source === "overlay" ? '<span class="badge">수기</span>' : "") +
+        (e.recurring ? '<span class="badge">반복</span>' : "") +
+        (multi ? '<span class="badge">여러 날</span>' : "") +
+      `</div><div class="meta">${esc(e.calendar)}${e.location ? " · " + esc(e.location) : ""}` +
+      (multi ? ` · ${e.start.slice(5, 10)} ~ ${e.end.slice(5, 10)}` : "") +
+      `</div>${editable ? '<div class="rowacts">'
+        + `<button data-act="edit" data-i="${i}">고치기</button>`
+        + `<button data-act="del" data-i="${i}">삭제</button></div>` : ""}</div>`;
+    box.appendChild(row);
+  });
+}
+
+function render() { renderGrid(); renderDay(); }
+
+el("grid").addEventListener("click", ev => {
+  const cell = ev.target.closest(".cell");
+  if (!cell) return;
+  selected = cell.dataset.date;
+  const d = new Date(selected + "T00:00:00");
+  if (d.getMonth() !== cursor.getMonth() || d.getFullYear() !== cursor.getFullYear()) {
+    cursor = new Date(d.getFullYear(), d.getMonth(), 1);
+  }
+  render();
+});
+el("prev").onclick = () => { cursor = new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1); render(); };
+el("next").onclick = () => { cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1); render(); };
+el("today").onclick = () => {
+  cursor = new Date(today.getFullYear(), today.getMonth(), 1);
+  selected = iso(today);
+  render();
+};
+
+el("planlink").href = PLAN_URL;
+function showSync(live) {
+  const t = syncedAt ? syncedAt.slice(0, 16).replace("T", " ") : "알 수 없음";
+  el("sync").textContent = (live ? "네이버와 양방향 연동 중 · " : "저장된 스냅샷 (읽기 전용) · ")
+    + `마지막 동기화 ${t}`;
+  el("sync").classList.toggle("live", !!live);
+}
+
+/* ================= 쓰기 ================= */
+let DB = null;                 // db 가 붙기 전엔 쓰기 UI 를 숨긴다
+let pending = [];
+let editing = null;            // 고치는 중인 일정 (없으면 새로 만들기)
+
+const CALENDARS = ["내 캘린더", "가족", "혜성연훈"];
+CALENDARS.forEach(n => {
+  const o = document.createElement("option");
+  o.value = o.textContent = n;
+  el("f-cal").appendChild(o);
+});
+
+function openForm(ev) {
+  editing = ev || null;
+  el("formtitle").textContent = ev ? "일정 고치기" : "일정 추가";
+  el("f-title").value = ev ? ev.title : "";
+  el("f-date").value = ev && ev.start ? ev.start.slice(0, 10) : selected;
+  el("f-start").value = ev && ev.start && !ev.all_day ? ev.start.slice(11, 16) : "09:00";
+  el("f-end").value = ev && ev.end && !ev.all_day ? ev.end.slice(11, 16) : "10:00";
+  el("f-allday").checked = !!(ev && ev.all_day);
+  el("f-loc").value = (ev && ev.location) || "";
+  el("f-cal").value = (ev && ev.calendar) || "내 캘린더";
+  el("f-cal").disabled = !!ev;         // 캘린더 이동은 지원하지 않는다
+  el("f-del").hidden = !ev;
+  el("form").hidden = false;
+  el("f-title").focus();
+}
+function closeForm() { el("form").hidden = true; editing = null; }
+
+async function queue(item) {
+  if (!DB) { alert("연동이 아직 연결되지 않았습니다. 잠시 후 다시 시도해 주세요."); return; }
+  const ref = DB.collection("pending").doc();
+  await ref.set({ ...item, status: "queued", created_at: new Date().toISOString() });
+  closeForm();
+}
+
+el("add").onclick = () => openForm(null);
+el("f-cancel").onclick = closeForm;
+el("f-allday").onchange = e => {
+  el("f-start").disabled = el("f-end").disabled = e.target.checked;
+};
+el("f-save").onclick = async () => {
+  const title = el("f-title").value.trim();
+  if (!title) { el("f-title").focus(); return; }
+  const allDay = el("f-allday").checked;
+  const base = {
+    title, date: el("f-date").value, all_day: allDay,
+    start: allDay ? null : el("f-start").value,
+    end: allDay ? null : el("f-end").value,
+    location: el("f-loc").value.trim() || null,
+    calendar: el("f-cal").value,
+  };
+  await queue(editing
+    ? { op: "update", href: editing.href, uid: editing.uid, ...base }
+    : { op: "create", ...base });
+};
+el("f-del").onclick = async () => {
+  if (!editing) return;
+  await queue({ op: "delete", href: editing.href, title: editing.title, date: el("f-date").value });
+};
+
+el("day").addEventListener("click", e => {
+  const b = e.target.closest("button[data-act]");
+  if (!b) return;
+  const ev = eventsOn(selected)[Number(b.dataset.i)];
+  if (!ev) return;
+  if (b.dataset.act === "edit") openForm(ev);
+  else { openForm(ev); el("f-del").focus(); }
+});
+
+function renderPending() {
+  const box = el("pend");
+  box.textContent = "";
+  const live = pending.filter(p => p.status !== "applied");
+  live.forEach(p => {
+    const d = document.createElement("div");
+    d.className = "pitem" + (p.status === "failed" ? " err" : "");
+    const label = { create: "추가", update: "수정", delete: "삭제" }[p.op] || p.op;
+    d.innerHTML =
+      `<span class="op">${esc(label)}</span>` +
+      `<span>${esc(p.title || "(제목 없음)")}${p.date ? " · " + esc(p.date) : ""}</span>` +
+      `<span style="color:var(--muted);font-size:12px">` +
+      (p.status === "failed" ? "실패" : "네이버에 반영 중…") + "</span>" +
+      (p.error ? `<span class="msg">${esc(p.error)}</span>` : "");
+    if (p.status === "failed") {
+      const btn = document.createElement("button");
+      btn.textContent = "지우기";
+      btn.onclick = () => DB && DB.collection("pending").doc(p.id).delete();
+      d.appendChild(btn);
+    }
+    box.appendChild(d);
+  });
+}
+
+el("note").textContent =
+  "여기서 추가·수정·삭제하면 네이버 캘린더에 반영됩니다. 반영은 로컬 동기화가 하므로 "
+  + "최대 5분쯤 걸립니다. 반복 일정과 여러 날에 걸친 일정은 안전을 위해 이 화면에서 "
+  + "고칠 수 없습니다 — 네이버에서 직접 바꿔 주세요.";
+showSync(false);
+render();
+
+/* ---- 자기 보고 ----
+   "안 보인다"는 말로는 원인을 못 찾는다. 화면이 자기가 무엇을 봤는지
+   직접 적게 한다. 실패해도 조용히 넘어간다 — 진단이 화면을 막으면 안 된다. */
+const SB = {"url": "https://hwyzfsymydmnctasktbn.supabase.co", "key": "sb_publishable_11XbsxV22RvJ5I0RPVvqxQ_dNJRbwL4"};
+function beacon(dbOk, liveCount, detail) {
+  if (!SB.url || !SB.key) return;
+  const seed = Object.values(SEED.months || {})
+    .reduce((n, days) => n + Object.values(days).reduce((m, v) => m + v.length, 0), 0);
+  const live = Object.values(months || {})
+    .reduce((n, days) => n + Object.values(days).reduce((m, v) => m + v.length, 0), 0);
+  try {
+    fetch(`${SB.url}/rest/v1/biseo_diag`, {
+      method: "POST",
+      headers: {
+        "apikey": SB.key, "Authorization": "Bearer " + SB.key,
+        "Content-Type": "application/json", "Prefer": "return=minimal",
+      },
+      body: JSON.stringify({
+        page: "calendar",
+        built_at: SEED.synced_at || null,
+        seed_events: seed,
+        live_events: liveCount == null ? live : liveCount,
+        db_ok: dbOk,
+        detail: (detail || "") + " | " + screen.width + "x" + screen.height
+                + " | " + navigator.userAgent.slice(0, 120),
+      }),
+    }).catch(() => {});
+  } catch (e) {}
+}
+
+/* ---- db 연결 ---- */
+(async () => {
+  let db = null;
+  try { db = await window.claude?.use?.("db"); }
+  catch (e) { beacon(false, null, "use(db) 예외: " + e); }
+  if (!db) {
+    el("add").hidden = true;      // 스냅샷만으로도 보기는 된다
+    beacon(false, null, "db 없음 — 스냅샷만 표시");
+    return;
+  }
+  DB = db;
+
+  db.collection("calendar").onSnapshot(
+    snap => {
+      const next = {};
+      let latest = syncedAt;
+      snap.docs.forEach(doc => {
+        const data = doc.data() || {};
+        if (data.days) next[doc.id] = data.days;
+        if (data.synced_at && (!latest || data.synced_at > latest)) latest = data.synced_at;
+      });
+      if (Object.keys(next).length) { months = next; syncedAt = latest; render(); }
+      showSync(true);
+      beacon(true, null, "db 스냅샷 수신 " + snap.docs.length + "개월");
+    },
+    err => { showSync(false); beacon(true, null, "db 스냅샷 오류: " + err); }
+  );
+
+  db.collection("pending").onSnapshot(
+    snap => {
+      pending = snap.docs.map(d => ({ id: d.id, ...(d.data() || {}) }));
+      renderPending();
+    },
+    () => { pending = []; renderPending(); }
+  );
+})();
+
+</script>
+

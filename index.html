@@ -1,0 +1,1215 @@
+<title>오늘의 설계</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@300;400;500;600&display=swap">
+
+<style>
+:root {
+  --paper:   #f5f6f3;
+  --surface: #ffffff;
+  --sunk:    #eceee8;
+  --ink:     #191b19;
+  --muted:   #6b716a;
+  --faint:   #969c94;
+  --line:    #e1e3dc;
+  --accent:  #1f6f4f;
+  --accent-soft: #e3efe8;
+  --warn:    #a1571c;
+  --warn-soft: #f6ece0;
+  --shadow: 0 1px 2px rgba(25,40,30,.05);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --paper:   #111310;
+    --surface: #191c18;
+    --sunk:    #15180f14;
+    --sunk:    #1f2320;
+    --ink:     #e9ebe6;
+    --muted:   #9aa096;
+    --faint:   #6f756d;
+    --line:    #2b2f2a;
+    --accent:  #63c79b;
+    --accent-soft: #1b2c24;
+    --warn:    #d99a5c;
+    --warn-soft: #2c2318;
+    --shadow: 0 1px 2px rgba(0,0,0,.35);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --paper:   #111310;
+  --surface: #191c18;
+  --sunk:    #1f2320;
+  --ink:     #e9ebe6;
+  --muted:   #9aa096;
+  --faint:   #6f756d;
+  --line:    #2b2f2a;
+  --accent:  #63c79b;
+  --accent-soft: #1b2c24;
+  --warn:    #d99a5c;
+  --warn-soft: #2c2318;
+  --shadow: 0 1px 2px rgba(0,0,0,.35);
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "IBM Plex Sans KR", -apple-system, "Malgun Gothic", sans-serif;
+  font-weight: 400;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+.wrap { max-width: 740px; margin: 0 auto; padding-inline: 18px; padding-block: 32px 64px; }
+
+/* ---- header ---- */
+.eyebrow {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--faint);
+}
+h1 {
+  font-family: "Gowun Batang", "Nanum Myeongjo", serif;
+  font-weight: 700;
+  font-size: clamp(25px, 5.4vw, 33px);
+  line-height: 1.34; text-wrap: balance;
+  margin: 10px 0 0;
+}
+.src {
+  margin-top: 14px; font-size: 12.5px; color: var(--faint);
+  font-family: "IBM Plex Mono", monospace;
+}
+
+/* ---- ledger: the scarcity is the story ---- */
+.ledger {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px;
+  margin: 26px 0 8px; background: var(--line);
+  border: 1px solid var(--line); border-radius: 3px; overflow: hidden;
+}
+.cell { background: var(--surface); padding: 14px 14px 13px; }
+.cell dt { font-size: 11.5px; color: var(--muted); letter-spacing: .02em; }
+.cell dd {
+  margin: 4px 0 0; font-family: "IBM Plex Mono", monospace;
+  font-variant-numeric: tabular-nums; font-size: 21px; font-weight: 500;
+  letter-spacing: -.02em;
+}
+.cell dd span { font-size: 12px; font-weight: 400; color: var(--faint); margin-left: 3px; }
+.cell.mine dd { color: var(--accent); }
+.bar { display: flex; height: 5px; border-radius: 3px; overflow: hidden; margin-bottom: 26px; }
+.bar i { display: block; }
+.bar .b-fixed { background: var(--faint); }
+.bar .b-move  { background: var(--line); }
+.bar .b-mine  { background: var(--accent); }
+
+/* ---- sections ---- */
+h2 {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11.5px; font-weight: 600; letter-spacing: .13em; text-transform: uppercase;
+  color: var(--muted);
+  margin: 40px 0 14px; padding-bottom: 7px; border-bottom: 1px solid var(--line);
+  display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+}
+h2 em { font-style: normal; color: var(--faint); letter-spacing: .04em; text-transform: none; font-size: 11px; }
+
+/* ---- timeline ---- */
+.tl { list-style: none; margin: 0; padding: 0; }
+.row {
+  display: grid; grid-template-columns: 62px 14px 1fr; gap: 0 11px;
+  align-items: stretch; position: relative;
+}
+.time {
+  font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums;
+  font-size: 12.5px; color: var(--muted); padding-top: 11px; text-align: right;
+  white-space: nowrap;
+}
+.row.done .time { color: var(--faint); }
+.rail { position: relative; }
+.rail::before {
+  content: ""; position: absolute; left: 5px; top: 0; bottom: 0; width: 4px;
+  background: var(--line); border-radius: 2px;
+}
+.row.k-deep .rail::before, .row.k-goal .rail::before { background: var(--accent); }
+.row.k-fixed .rail::before {
+  background: repeating-linear-gradient(135deg, var(--faint) 0 2px, transparent 2px 5px);
+}
+.row.k-move .rail::before { background: var(--line); }
+.row.k-meal .rail::before { background: var(--muted); opacity: .45; }
+.row.k-rest .rail::before { background: transparent; box-shadow: inset 0 0 0 1px var(--line); }
+.body { padding: 9px 0 9px; min-width: 0; border-bottom: 1px solid var(--line); }
+.row:last-child .body { border-bottom: 0; }
+.head { display: flex; align-items: flex-start; gap: 9px; }
+.ttl { font-size: 15px; font-weight: 500; letter-spacing: -.005em; }
+.row.k-fixed .ttl, .row.k-move .ttl { font-weight: 400; color: var(--muted); }
+.row.done .ttl { color: var(--faint); text-decoration: line-through; text-decoration-thickness: 1px; }
+.do { font-size: 13.5px; color: var(--muted); margin-top: 2px; }
+.row.done .do { color: var(--faint); }
+.fb {
+  font-size: 12.5px; color: var(--warn); background: var(--warn-soft);
+  border-radius: 3px; padding: 5px 9px; margin-top: 7px; display: inline-block;
+}
+.tags { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 7px; }
+.tag {
+  font-family: "IBM Plex Mono", monospace; font-size: 10.5px; letter-spacing: .04em;
+  padding: 2px 6px; border-radius: 2px; background: var(--sunk); color: var(--muted);
+}
+.tag.goal { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.mins { margin-left: auto; font-family: "IBM Plex Mono", monospace; font-size: 11.5px; color: var(--faint); padding-top: 3px; white-space: nowrap; }
+
+input[type="checkbox"] {
+  appearance: none; -webkit-appearance: none;
+  width: 17px; height: 17px; margin: 2px 0 0; flex: 0 0 auto;
+  border: 1.5px solid var(--line); border-radius: 3px; background: var(--surface);
+  cursor: pointer; position: relative; transition: background .12s, border-color .12s;
+}
+input[type="checkbox"]:hover { border-color: var(--accent); }
+input[type="checkbox"]:checked { background: var(--accent); border-color: var(--accent); }
+input[type="checkbox"]:checked::after {
+  content: ""; position: absolute; left: 5px; top: 1.5px; width: 4px; height: 9px;
+  border: solid var(--surface); border-width: 0 2px 2px 0; transform: rotate(42deg);
+}
+input[type="checkbox"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.nowline { position: relative; height: 0; }
+.nowline::before {
+  content: ""; position: absolute; left: 62px; right: 0; top: 0;
+  border-top: 1.5px dashed var(--warn); opacity: .75;
+}
+.nowline span {
+  position: absolute; left: 0; top: -8px; width: 56px; text-align: right;
+  font-family: "IBM Plex Mono", monospace; font-size: 10.5px; color: var(--warn);
+  background: var(--paper); padding-right: 3px;
+}
+
+/* ---- meals ---- */
+.meals { display: grid; gap: 12px; }
+.meal {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 3px;
+  padding: 13px 15px 14px; box-shadow: var(--shadow);
+}
+.meal header { display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; }
+.meal .slot { font-size: 14.5px; font-weight: 600; }
+.meal .mtime, .meal .mcost {
+  font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums; font-size: 12px;
+}
+.meal .mtime { color: var(--muted); }
+.meal .where { font-size: 12px; color: var(--faint); }
+.meal .mcost { margin-left: auto; color: var(--accent); font-weight: 600; }
+.meal .pick { margin: 8px 0 0; font-size: 14px; }
+.meal .opts { list-style: none; margin: 9px 0 0; padding: 0; display: grid; gap: 1px;
+  background: var(--line); border: 1px solid var(--line); border-radius: 3px; overflow: hidden; }
+.meal .opts li {
+  display: flex; gap: 10px; justify-content: space-between; align-items: baseline;
+  background: var(--surface); padding: 7px 11px; font-size: 13.5px;
+}
+.meal .opts b {
+  font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums;
+  font-weight: 500; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+}
+.meal .mkcal {
+  font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums;
+  font-size: 11.5px; color: var(--muted);
+  background: var(--sunk); border-radius: 2px; padding: 1px 6px;
+}
+.meal .opts li span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.nut {
+  font-style: normal; font-family: "IBM Plex Mono", monospace;
+  font-variant-numeric: tabular-nums; font-size: 11px; color: var(--faint);
+}
+.nsum {
+  margin: 2px 0 0; padding: 11px 15px; border: 1px solid var(--line);
+  border-radius: 3px; background: var(--sunk); font-size: 13px;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.nsum b { font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums; color: var(--accent); }
+.nsum .nnote { color: var(--muted); font-size: 12.5px; }
+.meal .mnote {
+  margin: 10px 0 0; font-size: 12.5px; color: var(--warn);
+  background: var(--warn-soft); border-radius: 3px; padding: 7px 10px;
+}
+
+/* ---- tables ---- */
+.tblwrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+th, td { text-align: left; padding: 8px 10px 8px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 11px; font-weight: 500; color: var(--faint); letter-spacing: .05em; text-transform: uppercase; white-space: nowrap; }
+td.num, th.num { text-align: right; font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums; padding-right: 0; white-space: nowrap; }
+tr.total td { border-bottom: 0; border-top: 1.5px solid var(--ink); font-weight: 600; padding-top: 9px; }
+
+/* 가계부 — 실제 금액과 수입 입력 */
+input.krw {
+  width: 100%; max-width: 8.5em; text-align: right; padding: 5px 7px;
+  font: inherit; font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums;
+  color: var(--ink); background: var(--sunk);
+  border: 1px solid transparent; border-radius: 5px;
+}
+input.krw::placeholder { color: var(--faint); }
+input.krw:hover { border-color: var(--line); }
+input.krw:focus { outline: none; border-color: var(--accent); background: var(--surface); }
+input.krw.filled { background: var(--accent-soft); }
+input.lbl {
+  width: 100%; padding: 5px 7px; font: inherit; color: var(--ink);
+  background: var(--sunk); border: 1px solid transparent; border-radius: 5px;
+}
+input.lbl:focus { outline: none; border-color: var(--accent); background: var(--surface); }
+button.addrow {
+  margin-top: 9px; padding: 6px 12px; font: inherit; font-size: 13px;
+  color: var(--muted); background: none;
+  border: 1px dashed var(--line); border-radius: 6px; cursor: pointer;
+}
+button.addrow:hover { color: var(--accent); border-color: var(--accent); }
+button.del {
+  padding: 2px 7px; font: inherit; font-size: 15px; line-height: 1.2;
+  color: var(--faint); background: none; border: 0; cursor: pointer;
+}
+button.del:hover { color: var(--warn); }
+#netbox { margin-top: 18px; }
+td.over { color: var(--warn); }
+
+/* 블록 편집 */
+.edittools { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: -4px 0 14px; }
+.edittools .addrow { margin-top: 0; }
+.edittools .cap { margin-top: 0; }
+button.addrow.on { color: var(--accent); border-color: var(--accent); border-style: solid; }
+.row.editing .body { background: var(--surface); box-shadow: inset 2px 0 0 var(--accent); padding-left: 10px; }
+.ed { display: grid; gap: 6px; min-width: 0; }
+.ed .times { display: flex; gap: 6px; align-items: center; font-size: 12px; color: var(--faint); }
+.ed input[type="time"] {
+  font: inherit; font-family: "IBM Plex Mono", monospace; font-size: 13px;
+  padding: 4px 6px; color: var(--ink); background: var(--sunk);
+  border: 1px solid transparent; border-radius: 5px;
+}
+.ed input[type="time"]:focus { outline: none; border-color: var(--accent); background: var(--surface); }
+.ed input.t, .ed textarea.d {
+  width: 100%; font: inherit; color: var(--ink); background: var(--sunk);
+  border: 1px solid transparent; border-radius: 5px; padding: 6px 8px;
+}
+.ed input.t { font-size: 15px; font-weight: 500; }
+.ed textarea.d { font-size: 13.5px; color: var(--muted); resize: vertical; min-height: 3.2em; }
+.ed input.t:focus, .ed textarea.d:focus { outline: none; border-color: var(--accent); background: var(--surface); }
+.ed .edrow { display: flex; gap: 8px; align-items: center; justify-content: space-between; }
+.ed select {
+  font: inherit; font-size: 12.5px; padding: 4px 6px; color: var(--muted);
+  background: var(--sunk); border: 1px solid transparent; border-radius: 5px;
+}
+/* 저장 바 — 아래 고정. 저장됐는지 눈으로 확인되지 않으면 아무도 안 믿는다. */
+.savebar {
+  position: sticky; bottom: 0; z-index: 5;
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  margin: 40px -18px -64px; padding: 12px 18px calc(12px + env(safe-area-inset-bottom, 0px));
+  background: var(--surface); border-top: 1px solid var(--line);
+}
+.savebar button {
+  font: inherit; font-size: 14px; font-weight: 600;
+  padding: 9px 22px; border-radius: 7px; cursor: pointer;
+  color: var(--surface); background: var(--accent); border: 1px solid var(--accent);
+}
+.savebar button:hover { filter: brightness(1.08); }
+.savebar button:disabled { opacity: .5; cursor: default; filter: none; }
+.savebar .state { font-size: 12.5px; color: var(--muted); }
+.savebar .state.ok { color: var(--accent); }
+.savebar .state.bad { color: var(--warn); }
+.savebar.dirty button { box-shadow: 0 0 0 3px var(--accent-soft); }
+
+.row.mine-edit .ttl::after {
+  content: "고침"; font-family: "IBM Plex Mono", monospace; font-size: 10px;
+  letter-spacing: .04em; color: var(--accent); background: var(--accent-soft);
+  border-radius: 2px; padding: 1px 5px; margin-left: 7px; vertical-align: 2px;
+}
+.cap { font-size: 12.5px; color: var(--muted); margin-top: 10px; }
+.cap.ok { color: var(--accent); }
+
+/* ---- lists ---- */
+ul.plain { list-style: none; margin: 0; padding: 0; display: grid; gap: 9px; }
+ul.plain li { font-size: 13.5px; color: var(--muted); padding-left: 15px; position: relative; }
+ul.plain li::before { content: "—"; position: absolute; left: 0; color: var(--faint); }
+.ask { background: var(--surface); border: 1px solid var(--line); border-radius: 3px; padding: 14px 16px; box-shadow: var(--shadow); }
+.ask ul.plain li { color: var(--ink); }
+.ask ul.plain li::before { content: "?"; font-family: "IBM Plex Mono", monospace; color: var(--warn); font-weight: 600; }
+
+.foot { margin-top: 46px; font-size: 11.5px; color: var(--faint); font-family: "IBM Plex Mono", monospace; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.sync { color: var(--faint); }
+.sync.live { color: var(--accent); }
+
+@media (max-width: 440px) {
+  .ledger { grid-template-columns: 1fr 1fr; }
+  .ledger .cell:last-child { grid-column: 1 / -1; }
+  .row { grid-template-columns: 52px 12px 1fr; gap: 0 8px; }
+  .nowline::before { left: 52px; }
+  .nowline span { width: 47px; }
+  .time { font-size: 11.5px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow" id="dateline"></div>
+    <h1 id="headline"></h1>
+    <div class="src" id="src"></div>
+  </header>
+
+  <dl class="ledger">
+    <div class="cell"><dt>확정 일정</dt><dd id="n-fixed"></dd></div>
+    <div class="cell"><dt>이동</dt><dd id="n-move"></dd></div>
+    <div class="cell mine"><dt>내 시간</dt><dd id="n-mine"></dd></div>
+  </dl>
+  <div class="bar" id="bar">
+    <i class="b-fixed"></i><i class="b-move"></i><i class="b-mine"></i>
+  </div>
+
+  <h2>타임박스 <em id="progress">—</em></h2>
+  <div class="edittools">
+    <button type="button" class="addrow" id="edit-toggle">블록 고치기</button>
+    <button type="button" class="addrow" id="edit-add" hidden>+ 블록 추가</button>
+    <button type="button" class="addrow" id="edit-reset" hidden>비서 원안으로</button>
+    <span class="cap" id="editnote"></span>
+  </div>
+  <ul class="tl" id="tl"></ul>
+
+  <h2>식단 <em id="dietnote"></em></h2>
+  <div class="meals" id="meals"></div>
+
+  <h2>지출 <em>계획은 추정치 · 실제는 직접 적습니다</em></h2>
+  <div class="tblwrap">
+    <table id="spend">
+      <thead><tr><th>항목</th><th>근거 일정</th><th class="num">계획</th><th class="num">실제</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <button type="button" class="addrow" id="add-spend">+ 계획에 없던 지출</button>
+  <p class="cap" id="spendnote"></p>
+
+  <h2>수입 <em id="incnote"></em></h2>
+  <div class="tblwrap">
+    <table id="income">
+      <thead><tr><th>항목</th><th class="num">금액</th><th class="num"></th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <button type="button" class="addrow" id="add-income">+ 수입 추가</button>
+
+  <dl class="ledger" id="netbox">
+    <div class="cell"><dt>실제 지출</dt><dd id="n-spent"></dd></div>
+    <div class="cell"><dt>수입</dt><dd id="n-income"></dd></div>
+    <div class="cell mine"><dt>순액</dt><dd id="n-net"></dd></div>
+  </dl>
+  <p class="cap" id="ledgersync"></p>
+
+  <h2>리스크</h2>
+  <ul class="plain" id="risks"></ul>
+
+  <h2>확인 필요</h2>
+  <div class="ask"><ul class="plain" id="confirm"></ul></div>
+
+  <div class="savebar" id="savebar">
+    <button type="button" id="savebtn">저장</button>
+    <span class="state" id="savestate">아직 저장한 변경이 없습니다</span>
+  </div>
+
+  <div class="foot">
+    <span id="synced" class="sync">체크 상태는 이 기기에만 저장됩니다</span>
+    <span>why_biseo</span>
+  </div>
+</div>
+
+<div id="gate" hidden>
+  <div class="gatebox">
+    <h1>오늘의 설계</h1>
+    <p class="gsub">이 페이지는 주인만 볼 수 있습니다. 이메일로 로그인하세요.</p>
+    <form id="gform">
+      <input id="gmail" type="email" inputmode="email" autocomplete="email"
+             placeholder="이메일 주소" required>
+      <button type="submit" id="gsend">로그인 링크 받기</button>
+    </form>
+    <p class="gmsg" id="gmsg"></p>
+    <p class="gfoot">비밀번호는 없습니다. 메일로 온 링크를 누르면 들어옵니다.</p>
+  </div>
+</div>
+<style>
+#gate { position:fixed; inset:0; z-index:99; display:grid; place-items:center;
+        background:var(--paper,#f5f6f3); padding:24px; }
+#gate[hidden] { display:none; }
+.gatebox { width:100%; max-width:340px; text-align:left; }
+.gatebox h1 { font-family:"Gowun Batang",serif; font-size:26px; margin:0 0 6px; }
+.gsub { font-size:13.5px; color:var(--muted,#6b716a); margin:0 0 20px; line-height:1.55; }
+#gform { display:grid; gap:9px; }
+#gmail { font:inherit; font-size:15px; padding:11px 13px; border-radius:8px;
+         border:1px solid var(--line,#e1e3dc); background:var(--surface,#fff);
+         color:var(--ink,#191b19); }
+#gmail:focus { outline:none; border-color:var(--accent,#1f6f4f); }
+#gsend { font:inherit; font-size:15px; font-weight:600; padding:11px; border-radius:8px;
+         cursor:pointer; color:#fff; background:var(--accent,#1f6f4f);
+         border:1px solid var(--accent,#1f6f4f); }
+#gsend:disabled { opacity:.55; cursor:default; }
+.gmsg { font-size:13px; margin:14px 0 0; line-height:1.6; min-height:1.2em; }
+.gmsg.ok { color:var(--accent,#1f6f4f); }
+.gmsg.bad { color:var(--warn,#a1571c); }
+.gfoot { font-size:12px; color:var(--faint,#969c94); margin-top:20px; }
+</style>
+<script>
+/* 로그인 관문. 세션이 없으면 본문 스크립트를 아예 실행하지 않는다.
+   데이터는 HTML 에 없고 로그인 뒤 받아오므로, 여기를 못 지나면 볼 것도 없다. */
+(async () => {
+  const SB = {"url": "https://hwyzfsymydmnctasktbn.supabase.co", "key": "sb_publishable_11XbsxV22RvJ5I0RPVvqxQ_dNJRbwL4"};
+  const KEY = "biseo-session";
+  const el = id => document.getElementById(id);
+  const msg = (t, cls) => { const m = el("gmsg"); m.textContent = t; m.className = "gmsg " + (cls || ""); };
+
+  const load = () => { try { return JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) { return null; } };
+  const save = s => { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (e) {} };
+  const drop = () => { try { localStorage.removeItem(KEY); } catch (e) {} };
+
+  /* 메일 링크로 돌아오면 토큰이 #fragment 에 실려 온다. 주소창에서 지운다. */
+  function fromHash() {
+    if (!location.hash.includes("access_token")) return null;
+    const p = new URLSearchParams(location.hash.slice(1));
+    const s = {
+      access_token: p.get("access_token"),
+      refresh_token: p.get("refresh_token"),
+      expires_at: Date.now() + (parseInt(p.get("expires_in") || "3600", 10) * 1000),
+    };
+    history.replaceState(null, "", location.pathname + location.search);
+    return s.access_token ? s : null;
+  }
+
+  async function refresh(s) {
+    const r = await fetch(`${SB.url}/auth/v1/token?grant_type=refresh_token`, {
+      method: "POST",
+      headers: { apikey: SB.key, "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh_token: s.refresh_token }),
+    });
+    if (!r.ok) return null;
+    const d = await r.json();
+    return { access_token: d.access_token, refresh_token: d.refresh_token,
+             expires_at: Date.now() + (d.expires_in || 3600) * 1000 };
+  }
+
+  let session = fromHash() || load();
+  if (session && session.expires_at - Date.now() < 60000 && session.refresh_token) {
+    session = await refresh(session);
+  }
+  if (session) save(session); else drop();
+
+  if (!session) {
+    el("gate").hidden = false;
+    document.querySelector(".wrap").style.display = "none";
+    el("gform").addEventListener("submit", async e => {
+      e.preventDefault();
+      const email = el("gmail").value.trim();
+      if (!email) return;
+      el("gsend").disabled = true;
+      msg("보내는 중…");
+      try {
+        const r = await fetch(`${SB.url}/auth/v1/otp`, {
+          method: "POST",
+          headers: { apikey: SB.key, "Content-Type": "application/json" },
+          body: JSON.stringify({ email, create_user: true,
+                                 options: { email_redirect_to: location.href.split("#")[0] } }),
+        });
+        if (!r.ok) throw new Error((await r.text()).slice(0, 160));
+        msg(email + " 로 로그인 링크를 보냈습니다. 메일함을 확인하세요. "
+            + "같은 기기에서 링크를 열어야 들어와집니다.", "ok");
+      } catch (err) {
+        msg("보내지 못했습니다 — " + err.message, "bad");
+        el("gsend").disabled = false;
+      }
+    });
+    return;                       // 본문은 실행하지 않는다
+  }
+
+  /* 여기부터는 로그인된 상태. 본문이 쓸 인증 fetch 를 깔아둔다. */
+  window.__BISEO = {
+    url: SB.url, key: SB.key, token: session.access_token,
+    logout() { drop(); location.reload(); },
+    async api(path, init) {
+      const r = await fetch(`${SB.url}/rest/v1/${path}`, {
+        ...init,
+        headers: {
+          apikey: SB.key,
+          Authorization: "Bearer " + session.access_token,
+          "Content-Type": "application/json",
+          ...(init && init.headers),
+        },
+      });
+      if (r.status === 401 || r.status === 403) { drop(); location.reload(); throw new Error("세션 만료"); }
+      if (!r.ok) throw new Error(`${r.status} ${(await r.text()).slice(0, 140)}`);
+      return r.status === 204 ? null : r.json();
+    },
+  };
+
+  /* 본문이 쓸 데이터를 먼저 받아온다. 없으면 본문을 돌릴 이유가 없다. */
+  const KIND = "plan";
+  const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+  const B = window.__BISEO;
+  B.data = { plan: null, calendar: { months: {}, synced_at: null } };
+
+  try {
+    if (KIND === "plan") {
+      const rows = await B.api(`biseo_plan_day?day=eq.${today}&select=plan`);
+      if (!rows.length) {
+        document.querySelector(".wrap").innerHTML =
+          '<p style="padding:40px 0;color:var(--muted)">오늘 계획이 아직 올라오지 않았습니다.'
+          + '<br>PC 에서 <code>python -m biseo.cli push</code> 를 한 번 돌려주세요.</p>';
+        return;
+      }
+      B.data.plan = rows[0].plan;
+    } else {
+      const rows = await B.api("biseo_calendar?select=month,days,synced_at&order=month");
+      const months = {};
+      let latest = null;
+      rows.forEach(r => {
+        months[r.month] = r.days || {};
+        if (r.synced_at && (!latest || r.synced_at > latest)) latest = r.synced_at;
+      });
+      B.data.calendar = { months, synced_at: latest };
+    }
+  } catch (err) {
+    document.querySelector(".wrap").innerHTML =
+      `<p style="padding:40px 0;color:var(--warn)">데이터를 받지 못했습니다 — ${err}</p>`;
+    return;
+  }
+
+  const src = document.getElementById("main-js");
+  try {
+    new Function(src.textContent)();
+  } catch (err) {
+    document.querySelector(".wrap").insertAdjacentHTML("afterbegin",
+      `<p style="color:var(--warn);font-size:13px">화면을 그리지 못했습니다 — ${err}</p>`);
+    throw err;
+  }
+})();
+</script>
+
+<script type="text/plain" id="main-js">
+
+const PLAN = window.__BISEO.data.plan;
+const KRW = n => n.toLocaleString("ko-KR") + "원";
+const toMin = s => { const [h, m] = s.split(":").map(Number); return h * 60 + m; };
+const keyOf = b => b.start + "-" + b.end;
+const CHECKABLE = new Set(["routine", "goal", "deep", "meal", "rest"]);
+const el = document.getElementById.bind(document);
+
+let done = new Set();
+
+/* ---------- render ---------- */
+el("headline").textContent = PLAN.headline;
+el("src").textContent = `기상 ${PLAN.wake} · 취침 ${PLAN.sleep} · 캘린더 ${PLAN.source}`;
+if (PLAN.diet_note) el("dietnote").textContent = PLAN.diet_note;
+{
+  const d = new Date(PLAN.date + "T00:00:00");
+  const days = ["일", "월", "화", "수", "목", "금", "토"];
+  el("dateline").textContent =
+    `${d.getFullYear()}. ${String(d.getMonth() + 1).padStart(2, "0")}. ${String(d.getDate()).padStart(2, "0")} · ${days[d.getDay()]}요일`;
+}
+{
+  const mins = b => toMin(b.end) - toMin(b.start);
+  const t = { fixed: 0, move: 0, mine: 0 };
+  PLAN.blocks.forEach(b => {
+    if (b.kind === "fixed") t.fixed += mins(b);
+    else if (b.kind === "move") t.move += mins(b);
+    else t.mine += mins(b);
+  });
+  const sum = t.fixed + t.move + t.mine;
+  el("n-fixed").innerHTML = t.fixed + "<span>분</span>";
+  el("n-move").innerHTML = t.move + "<span>분</span>";
+  el("n-mine").innerHTML = t.mine + "<span>분</span>";
+  const b = el("bar").children;
+  b[0].style.width = (t.fixed / sum * 100) + "%";
+  b[1].style.width = (t.move / sum * 100) + "%";
+  b[2].style.width = (t.mine / sum * 100) + "%";
+}
+
+/* ---------- 타임박스: 비서 원안 위에 내 수정을 덮는다 ---------- */
+/* PLAN.blocks 는 비서가 만든 원안이고 절대 바뀌지 않는다.
+   내가 고친 것은 blocks 에만 반영되고 db 의 plan/<날짜> 로 나간다.
+   아침 실행은 그걸 읽어서 "이 블록은 사람이 고쳤다"고 알게 된다. */
+
+const tl = el("tl");
+const nowMin = (() => { const d = new Date(); return d.getHours() * 60 + d.getMinutes(); })();
+const isToday = new Date().toISOString().slice(0, 10) === PLAN.date;
+
+const KINDS = [
+  ["deep", "몰입"], ["routine", "루틴"], ["meal", "식사"],
+  ["move", "이동"], ["rest", "회복"], ["fixed", "확정"],
+];
+const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g,
+  c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+const clone = o => JSON.parse(JSON.stringify(o));
+let blocks = clone(PLAN.blocks);
+let edited = new Set();        // 내가 손댄 블록의 원안 키
+let editing = false;
+let savePlanImpl = () => {};
+const savePlan = () => {
+  try { savePlanImpl(); }
+  catch (e) {
+    const n = el("editnote");
+    if (n) n.textContent = "수정 저장 실패 — 화면에는 남아 있습니다";
+  }
+};
+
+try {
+  const raw = localStorage.getItem("biseo-plan-" + PLAN.date);
+  if (raw) {
+    const saved = JSON.parse(raw);
+    if (Array.isArray(saved.blocks) && saved.blocks.length) blocks = saved.blocks;
+    if (Array.isArray(saved.edited)) edited = new Set(saved.edited);
+  }
+} catch (e) {}
+
+const savePlanLocal = () => {
+  try {
+    localStorage.setItem("biseo-plan-" + PLAN.date,
+      JSON.stringify({ blocks, edited: [...edited] }));
+  } catch (e) {}
+};
+
+function sortBlocks() { blocks.sort((a, b) => toMin(a.start) - toMin(b.start)); }
+
+function viewRow(b, li) {
+  const checkable = CHECKABLE.has(b.kind);
+  const box = checkable ? `<input type="checkbox" aria-label="${esc(b.title)} 완료">` : "";
+  const tags = [];
+  if (b.tag) tags.push(`<span class="tag">${esc(b.tag)}</span>`);
+  if (b.goal_id && b.goal_id !== "유지") tags.push(`<span class="tag goal">${esc(b.goal_id)}</span>`);
+  li.innerHTML =
+    `<div class="time">${b.start}<br>${b.end}</div>` +
+    `<div class="rail"></div>` +
+    `<div class="body">` +
+      `<div class="head">${box}<div style="min-width:0">` +
+        `<div class="ttl">${esc(b.title)}</div>` +
+        (b.do ? `<div class="do">${esc(b.do)}</div>` : "") +
+        (tags.length ? `<div class="tags">${tags.join("")}</div>` : "") +
+        (b.fallback ? `<div class="fb">밀리면 → ${esc(b.fallback)}</div>` : "") +
+      `</div><div class="mins">${toMin(b.end) - toMin(b.start)}분</div></div>` +
+    `</div>`;
+}
+
+function editRow(b, li) {
+  li.innerHTML = `<div class="time"></div><div class="rail"></div><div class="body"></div>`;
+  const body = li.querySelector(".body");
+  const ed = document.createElement("div");
+  ed.className = "ed";
+
+  const times = document.createElement("div");
+  times.className = "times";
+  const t1 = document.createElement("input"); t1.type = "time"; t1.value = b.start; t1.step = 300;
+  const t2 = document.createElement("input"); t2.type = "time"; t2.value = b.end; t2.step = 300;
+  const dash = document.createElement("span"); dash.textContent = "–";
+  const mins = document.createElement("span");
+  const showMins = () => { mins.textContent = Math.max(0, toMin(t2.value || b.end) - toMin(t1.value || b.start)) + "분"; };
+  showMins();
+  [t1, t2].forEach(t => t.addEventListener("change", () => { showMins(); touch(b, { start: t1.value, end: t2.value }); }));
+  times.append(t1, dash, t2, mins);
+
+  const title = document.createElement("input");
+  title.className = "t"; title.value = b.title || ""; title.placeholder = "무엇을 하는 블록인지";
+  title.addEventListener("input", () => touch(b, { title: title.value }, true));
+
+  const doTxt = document.createElement("textarea");
+  doTxt.className = "d"; doTxt.value = b.do || "";
+  doTxt.placeholder = "구체적으로 무엇을 할지 — 여기를 비우면 계획이 아니라 빈칸이 됩니다";
+  doTxt.addEventListener("input", () => touch(b, { do: doTxt.value }, true));
+
+  const bottom = document.createElement("div");
+  bottom.className = "edrow";
+  const kind = document.createElement("select");
+  KINDS.forEach(([v, label]) => {
+    const o = document.createElement("option");
+    o.value = v; o.textContent = label; o.selected = b.kind === v;
+    kind.appendChild(o);
+  });
+  kind.addEventListener("change", () => touch(b, { kind: kind.value }));
+  const del = document.createElement("button");
+  del.type = "button"; del.className = "del"; del.textContent = "이 블록 지우기";
+  del.style.fontSize = "12.5px";
+  del.addEventListener("click", () => {
+    blocks = blocks.filter(x => x !== b);
+    edited.add(b._key || keyOf(b));
+    paintTimeline(); savePlan();
+  });
+  bottom.append(kind, del);
+
+  ed.append(times, title, doTxt, bottom);
+  body.appendChild(ed);
+}
+
+/* live=true 면 입력 중이라 다시 그리지 않는다 — 커서가 튀면 못 쓴다 */
+function touch(b, patch, live) {
+  Object.assign(b, patch);
+  edited.add(b._key || keyOf(b));
+  savePlan();
+  if (!live) { sortBlocks(); paintTimeline(); }
+}
+
+function paintTimeline() {
+  sortBlocks();
+  tl.textContent = "";
+  let nowPlaced = false;
+
+  blocks.forEach(b => {
+    if (!editing && isToday && !nowPlaced && toMin(b.start) > nowMin && nowMin >= toMin(PLAN.wake)) {
+      const li = document.createElement("li");
+      li.className = "nowline";
+      li.innerHTML = `<span>${String(Math.floor(nowMin / 60)).padStart(2, "0")}:${String(nowMin % 60).padStart(2, "0")}</span>`;
+      tl.appendChild(li);
+      nowPlaced = true;
+    }
+    const li = document.createElement("li");
+    li.className = "row k-" + b.kind + (editing ? " editing" : "");
+    if (!editing && edited.has(b._key || keyOf(b))) li.classList.add("mine-edit");
+    li.dataset.key = keyOf(b);
+    (editing ? editRow : viewRow)(b, li);
+    tl.appendChild(li);
+  });
+
+  if (typeof paint === "function") paint();
+  const n = el("editnote");
+  if (n) {
+    n.textContent = edited.size
+      ? `${edited.size}개 블록을 고쳤습니다 — 아침 실행이 이걸 존중합니다`
+      : (editing ? "시간·제목·할 일을 고치고, 필요 없는 블록은 지우세요" : "");
+    n.classList.toggle("ok", edited.size > 0);
+  }
+}
+
+el("edit-toggle").addEventListener("click", () => {
+  editing = !editing;
+  el("edit-toggle").textContent = editing ? "편집 끝내기" : "블록 고치기";
+  el("edit-toggle").classList.toggle("on", editing);
+  el("edit-add").hidden = !editing;
+  el("edit-reset").hidden = !editing || edited.size === 0;
+  paintTimeline();
+});
+
+el("edit-add").addEventListener("click", () => {
+  const last = blocks[blocks.length - 1];
+  const start = last ? last.end : PLAN.wake;
+  const end = String(Math.min(23, toMin(start) / 60 + 1 | 0)).padStart(2, "0") + ":" + start.slice(3);
+  const b = { start, end: end > start ? end : PLAN.sleep, title: "", do: "", kind: "deep",
+              goal_id: "유지", fallback: null, _key: "new" + Date.now().toString(36) };
+  blocks.push(b);
+  edited.add(b._key);
+  paintTimeline(); savePlan();
+  el("edit-reset").hidden = false;
+  const inputs = tl.querySelectorAll("input.t");
+  if (inputs.length) inputs[inputs.length - 1].focus();
+});
+
+el("edit-reset").addEventListener("click", () => {
+  blocks = clone(PLAN.blocks);
+  edited = new Set();
+  paintTimeline(); savePlan();
+  el("edit-reset").hidden = true;
+});
+
+const mealsBox = el("meals");
+PLAN.meals.forEach(m => {
+  const card = document.createElement("section");
+  card.className = "meal";
+  const nut = o => {
+    const bits = [];
+    if (o.kcal != null) bits.push(`${o.kcal} kcal`);
+    if (o.protein != null) bits.push(`단백질 ${o.protein}g`);
+    return bits.length ? `<em class="nut">${bits.join(" · ")}</em>` : "";
+  };
+  const opts = (m.options || []).map(o =>
+    `<li><span>${o.what}${nut(o)}</span><b>${o.cost === 0 ? "포함" : KRW(o.cost)}</b></li>`).join("");
+  card.innerHTML =
+    `<header><span class="slot">${m.slot}</span>` +
+    `<span class="mtime">${m.time}</span>` +
+    `<span class="where">${m.where}</span>` +
+    (m.kcal != null ? `<span class="mkcal">${m.kcal} kcal</span>` : "") +
+    `<span class="mcost">${m.cost === 0 ? "0원" : KRW(m.cost)}</span></header>` +
+    (m.what ? `<p class="pick">${m.what}</p>` : "") +
+    (opts ? `<ul class="opts">${opts}</ul>` : "") +
+    (m.note ? `<p class="mnote">${m.note}</p>` : "");
+  mealsBox.appendChild(card);
+});
+if (PLAN.nutrition) {
+  const n = PLAN.nutrition;
+  const bar = document.createElement("p");
+  bar.className = "nsum";
+  bar.innerHTML =
+    `<span>하루 합계 <b>약 ${n.kcal} kcal</b> · 단백질 <b>약 ${n.protein}g</b></span>` +
+    (n.note ? `<span class="nnote">${n.note}</span>` : "");
+  mealsBox.appendChild(bar);
+}
+
+/* ---------- 가계부: 계획(추정) 옆에 실제, 그리고 수입 ---------- */
+/* 산술은 전부 여기서 끝낸다. 저장은 db 한 곳, 화면은 그 상태를 그리기만 한다. */
+
+const LKEY = "biseo-ledger-" + PLAN.date;
+let ledger = { actual: {}, extra: [], income: [] };
+let saveLedgerImpl = () => {};   // db 가 붙으면 교체된다
+/* 저장은 절대 화면을 막지 않는다. 눌렀는데 아무 반응이 없는 것보다
+   저장이 조용히 실패하는 편이 낫다 — 실패는 아래 상태줄에 뜬다. */
+const saveLedger = () => {
+  try { saveLedgerImpl(); }
+  catch (e) {
+    const n = el("ledgersync");
+    if (n) { n.textContent = "가계부 저장 실패 — 화면에는 남아 있습니다"; n.classList.remove("ok"); }
+  }
+};
+
+try {
+  const raw = localStorage.getItem(LKEY);
+  if (raw) ledger = Object.assign(ledger, JSON.parse(raw));
+} catch (e) { /* 프라이빗 창 등 — 빈 상태로 간다 */ }
+
+const saveLedgerLocal = () => {
+  try { localStorage.setItem(LKEY, JSON.stringify(ledger)); } catch (e) {}
+};
+
+const won = v => {
+  const n = parseInt(String(v).replace(/[^0-9-]/g, ""), 10);
+  return Number.isFinite(n) ? n : 0;
+};
+const newId = () => "x" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+
+const spendBody = document.querySelector("#spend tbody");
+const incomeBody = document.querySelector("#income tbody");
+
+function moneyInput(value, onChange, placeholder) {
+  const inp = document.createElement("input");
+  inp.type = "text";
+  inp.inputMode = "numeric";
+  inp.className = "krw";
+  inp.placeholder = placeholder || "0";
+  inp.value = value ? value.toLocaleString("ko-KR") : "";
+  if (value) inp.classList.add("filled");
+  inp.addEventListener("focus", () => { inp.value = value ? String(value) : ""; });
+  inp.addEventListener("blur", () => {
+    const v = won(inp.value);
+    value = v;
+    inp.value = v ? v.toLocaleString("ko-KR") : "";
+    inp.classList.toggle("filled", !!v);
+    onChange(v);
+  });
+  inp.addEventListener("keydown", e => { if (e.key === "Enter") inp.blur(); });
+  return inp;
+}
+
+function textInput(value, onChange, placeholder) {
+  const inp = document.createElement("input");
+  inp.type = "text";
+  inp.className = "lbl";
+  inp.placeholder = placeholder || "";
+  inp.value = value || "";
+  inp.addEventListener("blur", () => onChange(inp.value.trim()));
+  inp.addEventListener("keydown", e => { if (e.key === "Enter") inp.blur(); });
+  return inp;
+}
+
+function paintLedger() {
+  spendBody.textContent = "";
+  incomeBody.textContent = "";
+
+  let planned = 0, actual = 0;
+
+  PLAN.spend.items.forEach((i, idx) => {
+    const key = "p" + idx;
+    planned += i.amount;
+    actual += ledger.actual[key] || 0;
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${i.label}</td><td style="color:var(--muted)">${i.reason}</td>` +
+                   `<td class="num" style="color:var(--faint)">${KRW(i.amount)}</td>`;
+    const cell = document.createElement("td");
+    cell.className = "num";
+    cell.appendChild(moneyInput(ledger.actual[key] || 0, v => {
+      if (v) ledger.actual[key] = v; else delete ledger.actual[key];
+      paintLedger(); saveLedger();
+    }));
+    tr.appendChild(cell);
+    spendBody.appendChild(tr);
+  });
+
+  ledger.extra.forEach(row => {
+    actual += row.amount || 0;
+    const tr = document.createElement("tr");
+    const c1 = document.createElement("td");
+    c1.appendChild(textInput(row.label, v => { row.label = v; saveLedger(); }, "무엇에 썼는지"));
+    const c2 = document.createElement("td");
+    c2.style.color = "var(--faint)";
+    c2.textContent = "계획에 없던 지출";
+    const c3 = document.createElement("td");
+    c3.className = "num";
+    c3.style.color = "var(--faint)";
+    c3.textContent = "—";
+    const c4 = document.createElement("td");
+    c4.className = "num";
+    c4.appendChild(moneyInput(row.amount || 0, v => {
+      row.amount = v; paintLedger(); saveLedger();
+    }));
+    const del = document.createElement("button");
+    del.type = "button"; del.className = "del"; del.textContent = "×";
+    del.title = "이 줄 지우기";
+    del.addEventListener("click", () => {
+      ledger.extra = ledger.extra.filter(r => r.id !== row.id);
+      paintLedger(); saveLedger();
+    });
+    c4.appendChild(del);
+    tr.append(c1, c2, c3, c4);
+    spendBody.appendChild(tr);
+  });
+
+  const tr = document.createElement("tr");
+  tr.className = "total";
+  const overCap = actual > PLAN.spend.cap;
+  tr.innerHTML = `<td>합계</td>` +
+    `<td class="num" style="color:var(--faint);font-weight:400">상한 ${KRW(PLAN.spend.cap)}</td>` +
+    `<td class="num" style="color:var(--faint)">${KRW(planned)}</td>` +
+    `<td class="num${overCap ? " over" : ""}">${actual ? KRW(actual) : "—"}</td>`;
+  spendBody.appendChild(tr);
+
+  let income = 0;
+  ledger.income.forEach(row => {
+    income += row.amount || 0;
+    const r = document.createElement("tr");
+    const c1 = document.createElement("td");
+    c1.appendChild(textInput(row.label, v => { row.label = v; saveLedger(); }, "어디서 들어왔는지"));
+    const c2 = document.createElement("td");
+    c2.className = "num";
+    c2.appendChild(moneyInput(row.amount || 0, v => {
+      row.amount = v; paintLedger(); saveLedger();
+    }));
+    const c3 = document.createElement("td");
+    c3.className = "num";
+    const del = document.createElement("button");
+    del.type = "button"; del.className = "del"; del.textContent = "×";
+    del.title = "이 줄 지우기";
+    del.addEventListener("click", () => {
+      ledger.income = ledger.income.filter(r2 => r2.id !== row.id);
+      paintLedger(); saveLedger();
+    });
+    c3.appendChild(del);
+    r.append(c1, c2, c3);
+    incomeBody.appendChild(r);
+  });
+  el("incnote").textContent = ledger.income.length ? "" : "오늘 들어온 돈이 있으면 적어두세요";
+
+  el("n-spent").innerHTML = actual ? KRW(actual) : '<span style="color:var(--faint)">미기록</span>';
+  el("n-income").innerHTML = income ? KRW(income) : '<span style="color:var(--faint)">—</span>';
+  const net = income - actual;
+  el("n-net").innerHTML = (net >= 0 ? "+" : "−") + KRW(Math.abs(net));
+  el("n-net").style.color = net >= 0 ? "var(--accent)" : "var(--warn)";
+
+  const note = el("spendnote");
+  const parts = [];
+  if (actual) {
+    const gap = actual - planned;
+    parts.push(gap === 0 ? "계획과 실제가 같습니다."
+      : gap > 0 ? `계획보다 ${KRW(gap)} 더 썼습니다.`
+                : `계획보다 ${KRW(-gap)} 덜 썼습니다.`);
+    const left = PLAN.spend.cap - actual;
+    parts.push(left >= 0 ? `권장 상한까지 ${KRW(left)} 남았습니다.`
+                         : `권장 상한을 ${KRW(-left)} 넘었습니다.`);
+  } else {
+    const left = PLAN.spend.cap - planned;
+    parts.push(left >= 0 ? `계획 기준 권장 상한까지 ${KRW(left)} 남았습니다.`
+                         : `계획이 이미 권장 상한을 ${KRW(-left)} 넘었습니다.`);
+  }
+  parts.push(PLAN.spend.over_reason, PLAN.spend.note);
+  note.textContent = parts.filter(Boolean).join(" ");
+  note.classList.toggle("ok", actual ? actual <= PLAN.spend.cap : planned <= PLAN.spend.cap);
+  note.style.color = (actual || planned) > PLAN.spend.cap ? "var(--warn)" : "";
+}
+
+el("add-spend").addEventListener("click", () => {
+  ledger.extra.push({ id: newId(), label: "", category: "etc", amount: 0 });
+  paintLedger(); saveLedger();
+  const rows = spendBody.querySelectorAll("input.lbl");
+  if (rows.length) rows[rows.length - 1].focus();
+});
+el("add-income").addEventListener("click", () => {
+  ledger.income.push({ id: newId(), label: "", amount: 0 });
+  paintLedger(); saveLedger();
+  const rows = incomeBody.querySelectorAll("input.lbl");
+  if (rows.length) rows[rows.length - 1].focus();
+});
+
+saveLedgerImpl = saveLedgerLocal;
+paintLedger();
+
+PLAN.risks.forEach(t => { const li = document.createElement("li"); li.textContent = t; el("risks").appendChild(li); });
+PLAN.confirm.forEach(t => { const li = document.createElement("li"); li.textContent = t; el("confirm").appendChild(li); });
+
+/* ---------- check state ---------- */
+/* 블록을 고치면 키가 바뀌므로 매번 다시 센다 — 고정 목록을 쓰면 진행률이 어긋난다 */
+function currentCheckableKeys() {
+  return blocks.filter(b => CHECKABLE.has(b.kind)).map(keyOf);
+}
+
+function paint() {
+  document.querySelectorAll(".row[data-key]").forEach(row => {
+    const on = done.has(row.dataset.key);
+    row.classList.toggle("done", on);
+    const box = row.querySelector('input[type="checkbox"]');
+    if (box) box.checked = on;
+  });
+  const keys = currentCheckableKeys();
+  el("progress").textContent =
+    `${[...done].filter(k => keys.includes(k)).length} / ${keys.length} 완료`;
+}
+
+/* per-viewer fallback; replaced by db when it resolves */
+function loadLocal() {
+  try {
+    const raw = localStorage.getItem("biseo:" + PLAN.date);
+    if (raw) done = new Set(JSON.parse(raw));
+  } catch (e) { /* private window, blocked storage */ }
+}
+function saveLocal() {
+  try { localStorage.setItem("biseo:" + PLAN.date, JSON.stringify([...done])); } catch (e) {}
+}
+
+let persist = saveLocal;
+loadLocal();
+savePlanImpl = savePlanLocal;
+paintTimeline();
+
+document.addEventListener("change", e => {
+  const box = e.target.closest('input[type="checkbox"]');
+  if (!box) return;
+  const key = box.closest(".row").dataset.key;
+  if (box.checked) done.add(key); else done.delete(key);
+  paint();
+  persist();
+});
+
+/* ---------- 저장: 수파베이스 ---------- */
+/* 브라우저에서 REST 로 직접 붙는다. 키는 publishable 이고 보호는 RLS 가 한다.
+   저장은 절대 화면을 막지 않는다 — 실패해도 입력은 남고 아래 바에 이유가 뜬다. */
+
+const SB = {"url": "https://hwyzfsymydmnctasktbn.supabase.co", "key": "sb_publishable_11XbsxV22RvJ5I0RPVvqxQ_dNJRbwL4"};
+const savebar = el("savebar"), savebtn = el("savebtn"), savestate = el("savestate");
+
+let dirty = false, saving = false, lastError = "";
+
+function markDirty() {
+  dirty = true;
+  savebar.classList.add("dirty");
+  savestate.textContent = "저장하지 않은 변경이 있습니다";
+  savestate.className = "state";
+  savebtn.disabled = false;
+}
+function markSaved(where) {
+  dirty = false;
+  savebar.classList.remove("dirty");
+  const t = new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
+  savestate.textContent = `${t} 저장됨 · ${where}`;
+  savestate.className = "state ok";
+}
+function markFailed(why) {
+  savebar.classList.add("dirty");
+  savestate.textContent = "저장 실패 — " + why + " (입력은 화면에 남아 있습니다)";
+  savestate.className = "state bad";
+}
+
+/* 로컬 저장은 즉시, 원격 저장은 버튼으로. 두 경로를 분리해야 원인이 보인다. */
+savePlanImpl = () => { savePlanLocal(); markDirty(); };
+saveLedgerImpl = () => { saveLedgerLocal(); markDirty(); };
+persist = () => { saveLocal(); markDirty(); };
+
+async function sbUpsert(table, row) {
+  if (!SB.url || !SB.key) throw new Error("접속 설정 없음");
+  const res = await fetch(`${SB.url}/rest/v1/${table}?on_conflict=day`, {
+    method: "POST",
+    headers: {
+      "apikey": SB.key,
+      "Authorization": "Bearer " + SB.key,
+      "Content-Type": "application/json",
+      "Prefer": "resolution=merge-duplicates,return=minimal",
+    },
+    body: JSON.stringify(row),
+  });
+  if (!res.ok) throw new Error(`${res.status} ${(await res.text()).slice(0, 120)}`);
+}
+
+async function sbGet(table) {
+  if (!SB.url || !SB.key) return null;
+  const res = await fetch(`${SB.url}/rest/v1/${table}?day=eq.${PLAN.date}&select=*`, {
+    headers: { "apikey": SB.key, "Authorization": "Bearer " + SB.key },
+  });
+  if (!res.ok) throw new Error(`${res.status}`);
+  const rows = await res.json();
+  return rows && rows.length ? rows[0] : null;
+}
+
+async function saveAll() {
+  if (saving) return;
+  saving = true;
+  savebtn.disabled = true;
+  savestate.textContent = "저장 중…";
+  savestate.className = "state";
+  try {
+    await sbUpsert(SB.ledger, {
+      day: PLAN.date,
+      actual: ledger.actual,
+      extra: ledger.extra,
+      income: ledger.income,
+      planned: PLAN.spend.items.map(i => ({ label: i.label, category: i.category, amount: i.amount })),
+      cap: PLAN.spend.cap,
+    });
+    await sbUpsert(SB.plan, {
+      day: PLAN.date,
+      blocks: blocks,
+      edited: [...edited],
+      done: [...done],
+    });
+    markSaved("수파베이스");
+    lastError = "";
+  } catch (e) {
+    lastError = String(e && e.message ? e.message : e);
+    markFailed(lastError);
+  } finally {
+    saving = false;
+    savebtn.disabled = false;
+  }
+}
+
+savebtn.addEventListener("click", saveAll);
+
+/* 나가려는데 저장 안 된 게 있으면 잡아준다 */
+window.addEventListener("beforeunload", e => {
+  if (dirty) { e.preventDefault(); e.returnValue = ""; }
+});
+
+/* 시작할 때 서버 상태를 끌어온다. 실패해도 로컬 상태로 그냥 간다. */
+(async () => {
+  if (!SB.url || !SB.key) {
+    savestate.textContent = "수파베이스 설정이 없어 이 기기에만 저장됩니다";
+    savestate.className = "state bad";
+    return;
+  }
+  try {
+    const [lrow, prow] = await Promise.all([sbGet(SB.ledger), sbGet(SB.plan)]);
+    if (lrow) {
+      ledger.actual = lrow.actual || {};
+      ledger.extra = Array.isArray(lrow.extra) ? lrow.extra : [];
+      ledger.income = Array.isArray(lrow.income) ? lrow.income : [];
+      saveLedgerLocal();
+      paintLedger();
+    }
+    if (prow && Array.isArray(prow.blocks) && prow.blocks.length) {
+      blocks = prow.blocks;
+      edited = new Set(Array.isArray(prow.edited) ? prow.edited : []);
+      done = new Set(Array.isArray(prow.done) ? prow.done : []);
+      savePlanLocal(); saveLocal();
+      paintTimeline();
+    }
+    if (!dirty) {
+      savestate.textContent = (lrow || prow) ? "수파베이스에서 불러왔습니다" : "수파베이스 연결됨 — 아직 저장한 내용 없음";
+      savestate.className = "state ok";
+    }
+    el("synced").textContent = "수파베이스에 저장됩니다";
+    el("synced").classList.add("live");
+  } catch (e) {
+    markFailed("불러오기 " + String(e && e.message ? e.message : e));
+    el("synced").textContent = "수파베이스에 못 붙었습니다 — 이 기기에만 저장됩니다";
+  }
+})();
+
+</script>
+
