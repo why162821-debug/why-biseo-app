@@ -302,7 +302,7 @@ h2 em { font-style:normal; color:var(--faint); letter-spacing:.04em; text-transf
    그래서 리로드를 없앴다. 로그인하면 그 자리에서 이어간다.
    그리고 모든 실패는 반드시 글자로 남긴다 — 멈춰 있는 화면은 원인을 못 알려준다. */
 (async () => {
-  const SB = {"url": "https://hwyzfsymydmnctasktbn.supabase.co", "key": "sb_publishable_11XbsxV22RvJ5I0RPVvqxQ_dNJRbwL4"};
+  const SB = {"url": "https://hwyzfsymydmnctasktbn.supabase.co", "key": "sb_publishable_11XbsxV22RvJ5I0RPVvqxQ_dNJRbwL4", "ledger": "biseo_ledger", "plan": "biseo_plan"};
   const KIND = "calendar";
   const KEY = "biseo-session";
   const el = id => document.getElementById(id);
@@ -750,7 +750,7 @@ render();
 /* ---- 자기 보고 ----
    "안 보인다"는 말로는 원인을 못 찾는다. 화면이 자기가 무엇을 봤는지
    직접 적게 한다. 실패해도 조용히 넘어간다 — 진단이 화면을 막으면 안 된다. */
-const SB = {"url": "https://hwyzfsymydmnctasktbn.supabase.co", "key": "sb_publishable_11XbsxV22RvJ5I0RPVvqxQ_dNJRbwL4"};
+const SB = {"url": "https://hwyzfsymydmnctasktbn.supabase.co", "key": "sb_publishable_11XbsxV22RvJ5I0RPVvqxQ_dNJRbwL4", "ledger": "biseo_ledger", "plan": "biseo_plan"};
 function beacon(dbOk, liveCount, detail) {
   if (!SB.url || !SB.key) return;
   const seed = Object.values(SEED.months || {})

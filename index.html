@@ -495,7 +495,7 @@ ul.plain li::before { content: "—"; position: absolute; left: 0; color: var(--
    그래서 리로드를 없앴다. 로그인하면 그 자리에서 이어간다.
    그리고 모든 실패는 반드시 글자로 남긴다 — 멈춰 있는 화면은 원인을 못 알려준다. */
 (async () => {
-  const SB = {"url": "https://hwyzfsymydmnctasktbn.supabase.co", "key": "sb_publishable_11XbsxV22RvJ5I0RPVvqxQ_dNJRbwL4"};
+  const SB = {"url": "https://hwyzfsymydmnctasktbn.supabase.co", "key": "sb_publishable_11XbsxV22RvJ5I0RPVvqxQ_dNJRbwL4", "ledger": "biseo_ledger", "plan": "biseo_plan"};
   const KIND = "plan";
   const KEY = "biseo-session";
   const el = id => document.getElementById(id);
@@ -1178,7 +1178,7 @@ document.addEventListener("change", e => {
 /* 브라우저에서 REST 로 직접 붙는다. 키는 publishable 이고 보호는 RLS 가 한다.
    저장은 절대 화면을 막지 않는다 — 실패해도 입력은 남고 아래 바에 이유가 뜬다. */
 
-const SB = {"url": "https://hwyzfsymydmnctasktbn.supabase.co", "key": "sb_publishable_11XbsxV22RvJ5I0RPVvqxQ_dNJRbwL4"};
+const SB = {"url": "https://hwyzfsymydmnctasktbn.supabase.co", "key": "sb_publishable_11XbsxV22RvJ5I0RPVvqxQ_dNJRbwL4", "ledger": "biseo_ledger", "plan": "biseo_plan"};
 const savebar = el("savebar"), savebtn = el("savebtn"), savestate = el("savestate");
 
 let dirty = false, saving = false, lastError = "";
@@ -1208,25 +1208,41 @@ savePlanImpl = () => { savePlanLocal(); markDirty(); };
 saveLedgerImpl = () => { saveLedgerLocal(); markDirty(); };
 persist = () => { saveLocal(); markDirty(); };
 
+/* 테이블 이름은 빌드가 넣어주지만, 빠지면 /rest/v1/undefined 로 쏘게 된다.
+   그런 실패는 404 로만 보여서 원인을 찾는 데 한참 걸린다. 기본값을 둔다. */
+const T_LEDGER = SB.ledger || "biseo_ledger";
+const T_PLAN = SB.plan || "biseo_plan";
+
+/* RLS 가 "등록된 주인만" 으로 걸려 있다. publishable 키로는 아무것도 못 쓴다.
+   로그인한 사람의 토큰이 있으면 그걸 쓴다 — 관문이 window.__BISEO 에 넣어둔다. */
+function sbHeaders(extra) {
+  const tok = (window.__BISEO && window.__BISEO.token) || SB.key;
+  return { "apikey": SB.key, "Authorization": "Bearer " + tok, ...(extra || {}) };
+}
+
 async function sbUpsert(table, row) {
   if (!SB.url || !SB.key) throw new Error("접속 설정 없음");
   const res = await fetch(`${SB.url}/rest/v1/${table}?on_conflict=day`, {
     method: "POST",
-    headers: {
-      "apikey": SB.key,
-      "Authorization": "Bearer " + SB.key,
+    headers: sbHeaders({
       "Content-Type": "application/json",
       "Prefer": "resolution=merge-duplicates,return=minimal",
-    },
+    }),
     body: JSON.stringify(row),
   });
-  if (!res.ok) throw new Error(`${res.status} ${(await res.text()).slice(0, 120)}`);
+  if (!res.ok) {
+    const body = (await res.text()).slice(0, 140);
+    if (res.status === 401 || res.status === 403) {
+      throw new Error(`권한 없음 (${res.status}) — 로그인이 풀렸을 수 있습니다`);
+    }
+    throw new Error(`${res.status} ${body}`);
+  }
 }
 
 async function sbGet(table) {
   if (!SB.url || !SB.key) return null;
   const res = await fetch(`${SB.url}/rest/v1/${table}?day=eq.${PLAN.date}&select=*`, {
-    headers: { "apikey": SB.key, "Authorization": "Bearer " + SB.key },
+    headers: sbHeaders(),
   });
   if (!res.ok) throw new Error(`${res.status}`);
   const rows = await res.json();
@@ -1240,7 +1256,7 @@ async function saveAll() {
   savestate.textContent = "저장 중…";
   savestate.className = "state";
   try {
-    await sbUpsert(SB.ledger, {
+    await sbUpsert(T_LEDGER, {
       day: PLAN.date,
       actual: ledger.actual,
       extra: ledger.extra,
@@ -1248,7 +1264,7 @@ async function saveAll() {
       planned: PLAN.spend.items.map(i => ({ label: i.label, category: i.category, amount: i.amount })),
       cap: PLAN.spend.cap,
     });
-    await sbUpsert(SB.plan, {
+    await sbUpsert(T_PLAN, {
       day: PLAN.date,
       blocks: blocks,
       edited: [...edited],
@@ -1280,7 +1296,7 @@ window.addEventListener("beforeunload", e => {
     return;
   }
   try {
-    const [lrow, prow] = await Promise.all([sbGet(SB.ledger), sbGet(SB.plan)]);
+    const [lrow, prow] = await Promise.all([sbGet(T_LEDGER), sbGet(T_PLAN)]);
     if (lrow) {
       ledger.actual = lrow.actual || {};
       ledger.extra = Array.isArray(lrow.extra) ? lrow.extra : [];
