@@ -328,6 +328,18 @@ ul.plain li::before { content: "—"; position: absolute; left: 0; color: var(--
 .ask ul.plain li::before { content: "?"; font-family: "IBM Plex Mono", monospace; color: var(--warn); font-weight: 600; }
 
 .foot { margin-top: 46px; font-size: 11.5px; color: var(--faint); font-family: "IBM Plex Mono", monospace; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.foot a { color: var(--accent); text-decoration: none; }
+.foot a:hover { text-decoration: underline; }
+
+/* 두 화면을 오가는 길. 폰에서 주소를 다시 치게 만들면 안 쓰게 된다. */
+.jump { margin-top: 20px; }
+.jumpbtn {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 13px; padding: 7px 14px; border-radius: 99px;
+  color: var(--muted); background: var(--surface); text-decoration: none;
+  border: 1px solid var(--line); box-shadow: var(--shadow);
+}
+.jumpbtn:hover { color: var(--accent); border-color: var(--accent); }
 .sync { color: var(--faint); }
 .sync.live { color: var(--accent); }
 
@@ -348,6 +360,10 @@ ul.plain li::before { content: "—"; position: absolute; left: 0; color: var(--
     <h1 id="headline"></h1>
     <div class="src" id="src"></div>
   </header>
+
+  <nav class="jump">
+    <a class="jumpbtn" href="./calendar.html">📅 내 캘린더</a>
+  </nav>
 
   <dl class="ledger">
     <div class="cell"><dt>확정 일정</dt><dd id="n-fixed"></dd></div>
@@ -409,7 +425,7 @@ ul.plain li::before { content: "—"; position: absolute; left: 0; color: var(--
 
   <div class="foot">
     <span id="synced" class="sync">체크 상태는 이 기기에만 저장됩니다</span>
-    <span>why_biseo</span>
+    <span><a id="callink" href="./calendar.html">내 캘린더 →</a></span>
   </div>
 </div>
 
