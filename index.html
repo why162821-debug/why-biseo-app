@@ -1,3 +1,11 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+</head>
+<body>
 <title>오늘의 설계</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -666,7 +674,14 @@ ul.plain li::before { content: "—"; position: absolute; left: 0; color: var(--
 
 const PLAN = window.__BISEO.data.plan;
 const KRW = n => n.toLocaleString("ko-KR") + "원";
-const toMin = s => { const [h, m] = s.split(":").map(Number); return h * 60 + m; };
+/* 값 하나가 비었다고 타임라인 전체가 죽으면 안 된다.
+   실제로 push 가 기상·취침을 빠뜨려서 화면이 중간에 끊긴 적이 있다. */
+const toMin = s => {
+  const [h, m] = String(s ?? "0:00").split(":").map(Number);
+  return (Number.isFinite(h) ? h : 0) * 60 + (Number.isFinite(m) ? m : 0);
+};
+PLAN.wake = PLAN.wake || "07:00";
+PLAN.sleep = PLAN.sleep || "23:30";
 const keyOf = b => b.start + "-" + b.end;
 const CHECKABLE = new Set(["routine", "goal", "deep", "meal", "rest"]);
 const el = document.getElementById.bind(document);
@@ -1294,3 +1309,6 @@ window.addEventListener("beforeunload", e => {
 
 </script>
 
+
+</body>
+</html>
